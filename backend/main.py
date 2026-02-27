@@ -32,6 +32,8 @@ from services.market_engine import MarketEngine
 from services.explain_engine import ExplainEngine
 from services.uncertainty_engine import UncertaintyEngine
 from services.total_goals_engine import TotalGoalsEngine
+from services.goal_window_engine import GoalWindowEngine
+from services.risk_engine import RiskEngine
 from store.match_state import MatchStateStore
 
 app = FastAPI(title="Football Quant Terminal API", version="1.1.0")
@@ -54,6 +56,8 @@ market_engine = MarketEngine()
 explain_engine = ExplainEngine()
 uncertainty_engine = UncertaintyEngine()
 total_goals_engine = TotalGoalsEngine()
+goal_window_engine = GoalWindowEngine()
+risk_engine = RiskEngine()
 state_store = MatchStateStore()
 
 # Managed matches (admin-controlled)
@@ -160,6 +164,9 @@ class DemoSimulator:
         self.axg = 0.0
         self.events = []
         self.prev_state = None
+        # Line movement tracking
+        self._prev_line = 2.5
+        self._prev_over_odds = 1.90
 
     def tick(self, match_state, real_odds=None):
         """real_odds: optional {"home":1.85,"draw":3.5,"away":4.2} from The Odds API."""
@@ -303,6 +310,52 @@ class DemoSimulator:
 
         total_goals = total_goals_engine.compute(tg_live_state, demo_odds_ou, time.time())
 
+        # Goal Window detection
+        goal_window = goal_window_engine.compute(
+            tg_live_state,
+            total_goals["lambda_live"],
+            total_goals["tempo_raw"],
+        )
+
+        # ── Line Movement ──
+        current_line = demo_odds_ou.get("line", 2.5)
+        current_over_odds = demo_odds_ou.get("over_odds", 1.90)
+        current_under_odds = demo_odds_ou.get("under_odds", 1.90)
+
+        if current_line < self._prev_line:
+            lm_direction = "UNDER"
+        elif current_line > self._prev_line:
+            lm_direction = "OVER"
+        else:
+            lm_direction = "NEUTRAL"
+
+        if current_over_odds < self._prev_over_odds - 0.01:
+            lm_pressure = "OVER"
+        elif current_over_odds > self._prev_over_odds + 0.01:
+            lm_pressure = "UNDER"
+        else:
+            lm_pressure = "NEUTRAL"
+
+        line_movement = {
+            "current_line": current_line,
+            "previous_line": self._prev_line,
+            "over_odds": current_over_odds,
+            "over_odds_prev": self._prev_over_odds,
+            "under_odds": current_under_odds,
+            "direction": lm_direction,
+            "pressure": lm_pressure,
+        }
+
+        self._prev_line = current_line
+        self._prev_over_odds = current_over_odds
+
+        # ── Risk Engine ──
+        risk = risk_engine.compute(
+            ai_prob=prob,
+            edge=total_goals.get("edge"),
+            tempo_c=total_goals.get("tempo_raw"),
+        )
+
         # ═══ v1.1 Full Payload ═══
         return {
             "meta": {
@@ -336,6 +389,9 @@ class DemoSimulator:
             "explain": explain,
             "report": report,
             "total_goals": total_goals,
+            "goal_window": goal_window,
+            "line_movement": line_movement,
+            "risk": risk,
         }
 
 
@@ -373,6 +429,8 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
             api_id = config.get("api_football_id", match_id)
             live_source_name = settings.live_source
             prev_live_state = None
+            live_prev_line = 2.5
+            live_prev_over_odds = 1.90
 
             while True:
                 try:
@@ -472,6 +530,53 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                     odds_ou = odds_data.get("totals") if odds_data else None
                     total_goals = total_goals_engine.compute(live_state, odds_ou, time.time())
 
+                    # Goal Window detection
+                    goal_window = goal_window_engine.compute(
+                        live_state,
+                        total_goals["lambda_live"],
+                        total_goals["tempo_raw"],
+                    )
+
+                    # Line Movement (live mode)
+                    lm_odds_ou = odds_data.get("totals") if odds_data else {}
+                    lm_current_line = lm_odds_ou.get("line", 2.5) if lm_odds_ou else 2.5
+                    lm_current_over = lm_odds_ou.get("over_odds", 1.90) if lm_odds_ou else 1.90
+                    lm_current_under = lm_odds_ou.get("under_odds", 1.90) if lm_odds_ou else 1.90
+
+                    if lm_current_line < live_prev_line:
+                        lm_dir = "UNDER"
+                    elif lm_current_line > live_prev_line:
+                        lm_dir = "OVER"
+                    else:
+                        lm_dir = "NEUTRAL"
+
+                    if lm_current_over < live_prev_over_odds - 0.01:
+                        lm_pres = "OVER"
+                    elif lm_current_over > live_prev_over_odds + 0.01:
+                        lm_pres = "UNDER"
+                    else:
+                        lm_pres = "NEUTRAL"
+
+                    line_movement = {
+                        "current_line": lm_current_line,
+                        "previous_line": live_prev_line,
+                        "over_odds": lm_current_over,
+                        "over_odds_prev": live_prev_over_odds,
+                        "under_odds": lm_current_under,
+                        "direction": lm_dir,
+                        "pressure": lm_pres,
+                    }
+
+                    live_prev_line = lm_current_line
+                    live_prev_over_odds = lm_current_over
+
+                    # Risk Engine (live mode)
+                    risk = risk_engine.compute(
+                        ai_prob=prob,
+                        edge=total_goals.get("edge"),
+                        tempo_c=total_goals.get("tempo_raw"),
+                    )
+
                     payload = {
                         "meta": {
                             "match_id": match_id,
@@ -497,6 +602,9 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "explain": explain,
                         "report": report,
                         "total_goals": total_goals,
+                        "goal_window": goal_window,
+                        "line_movement": line_movement,
+                        "risk": risk,
                     }
 
                     await ws.send_json(payload)

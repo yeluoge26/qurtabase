@@ -206,6 +206,13 @@ class TotalGoalsEngine:
             cd_signal = max(0, self.SIGNAL_COOLDOWN - (now_ts - self._last_signal_ts)) if self._last_signal_ts > 0 else 0
             cooldown_remaining = max(cd_goal, cd_signal)
 
+        # ── 10. O/U Scanner (multi-line) ──
+        scanner = self.scan_lines(
+            lambda_live=lam_total_live,
+            market_line=line,
+            market_over_prob=p_mkt_over * 100 if p_mkt_over is not None else None,
+        )
+
         return {
             # Core λ values
             "lambda_pre": round(lam_pre, 2),
@@ -234,7 +241,91 @@ class TotalGoalsEngine:
             # Cooldown
             "in_cooldown": in_cooldown,
             "cooldown_remaining_sec": round(cooldown_remaining),
+
+            # Scanner (multi-line O/U)
+            "scanner": scanner,
         }
+
+    def _poisson_over_prob(self, lam_remaining: float, goals_so_far: int, line: float) -> float:
+        """
+        Compute P(total > line) using Poisson CDF on remaining goals.
+        Handles integer and half-integer lines.
+        """
+        if line % 1 == 0.5:
+            # Standard half-integer line (e.g. 2.5, 3.5): over iff remaining > line - goals
+            remaining_needed = max(0, math.floor(line) - goals_so_far)
+            p_under = sum(
+                self._poisson_pmf(k, lam_remaining)
+                for k in range(remaining_needed + 1)
+            )
+            return self._clip(1.0 - p_under, 0.01, 0.99)
+        elif line % 1 == 0.0:
+            # Whole number line (e.g. 2.0, 3.0): push on exact
+            remaining_needed = max(0, int(line) - goals_so_far)
+            p_under = sum(
+                self._poisson_pmf(k, lam_remaining)
+                for k in range(remaining_needed)
+            )
+            p_exact = self._poisson_pmf(remaining_needed, lam_remaining) if remaining_needed >= 0 else 0.0
+            # Over = strictly above: 1 - P(X < line - gSoFar) - P(X == line - gSoFar)
+            # For push (Asian whole line): half win/half lose, but we report raw over prob
+            p_over = 1.0 - p_under - p_exact
+            return self._clip(p_over, 0.01, 0.99)
+        elif line % 1 == 0.25 or line % 1 == 0.75:
+            # Quarter lines (e.g. 2.25, 2.75): split between two adjacent half/whole lines
+            lo_line = line - 0.25
+            hi_line = line + 0.25
+            p_lo = self._poisson_over_prob(lam_remaining, goals_so_far, lo_line)
+            p_hi = self._poisson_over_prob(lam_remaining, goals_so_far, hi_line)
+            return self._clip(0.5 * p_lo + 0.5 * p_hi, 0.01, 0.99)
+        else:
+            # Fallback: treat as half-integer
+            remaining_needed = max(0, math.floor(line) - goals_so_far)
+            p_under = sum(
+                self._poisson_pmf(k, lam_remaining)
+                for k in range(remaining_needed + 1)
+            )
+            return self._clip(1.0 - p_under, 0.01, 0.99)
+
+    def scan_lines(self, lambda_live: float, market_line: float = 2.5,
+                   market_over_prob: float = None) -> list[dict]:
+        """
+        Compute O/U probabilities for multiple lines.
+
+        Args:
+            lambda_live: Total lambda (goals_so_far + lambda_remaining).
+            market_line: The currently active traded line (default 2.5).
+            market_over_prob: Market-implied over probability for the active line (or None).
+
+        Returns:
+            List of dicts, one per scanned line.
+        """
+        SCAN_LINES = [1.5, 2.0, 2.25, 2.5, 2.75, 3.0, 3.5]
+        results = []
+
+        for ln in SCAN_LINES:
+            over_prob = self._poisson_over_prob(lambda_live, 0, ln)
+            under_prob = self._clip(1.0 - over_prob, 0.01, 0.99)
+
+            # Market probability: only valid for the active market line
+            mkt_over = None
+            edge = None
+            if market_over_prob is not None and abs(ln - market_line) < 1e-6:
+                mkt_over = round(market_over_prob, 2)
+                edge = round(over_prob * 100 - mkt_over, 2)
+
+            is_active = abs(ln - market_line) < 1e-6
+
+            results.append({
+                "line": ln,
+                "over_prob": round(over_prob * 100, 2),
+                "under_prob": round(under_prob * 100, 2),
+                "market_over_prob": mkt_over,
+                "edge": edge,
+                "is_active": is_active,
+            })
+
+        return results
 
     def _estimate_lambda_from_over_prob(self, p_over: float, goals_so_far: int, line: float) -> float:
         """Estimate λ_remaining from market over probability using bisection."""

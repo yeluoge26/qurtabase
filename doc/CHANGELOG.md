@@ -5,6 +5,33 @@
 
 ---
 
+## [v2.0.0] — 2026-02-27
+
+### Added — Streaming Fan Engagement (P0)
+- **`OUScanner.jsx`**: Multi-line O/U scanner (1.5/2.0/2.25/2.5/2.75/3.0/3.5) with per-line Edge, active marker, mini bars
+- **`GoalWindow.jsx`** + **`goal_window_engine.py`**: High goal window detection (tempo_c≥1.15, λ_rate>0.029), confidence %, countdown banner
+- **`SignalCooldownBar.jsx`**: Signal state progression (MONITORING → BUILDING → READY → COOLDOWN) with visible countdown timer
+- **`EdgeHeatBar.jsx`**: Visual Edge progress bar with color gradient (gray→gold→bright gold), threshold markers at 4%/6%
+- **`ModelCycleTimer.jsx`**: Model evaluation countdown, state indicator (Monitoring/Evaluating/Recalculating), volatility level
+
+### Added — Market & Risk Transparency (P1)
+- **`LineMovement.jsx`**: Odds flow monitoring with line change tracking, market pressure direction (OVER/UNDER/NEUTRAL)
+- **`RiskPanel.jsx`** + **`risk_engine.py`**: Model Variance, Signal Stability (10-sample), Market Volatility, Drawdown Guard
+- Line movement tracking in DemoSimulator and live WebSocket loop
+
+### Added — Backend Engines
+- **`backend/services/goal_window_engine.py`**: GoalWindowEngine with 3-min deactivation delay, duration estimation brackets
+- **`backend/services/risk_engine.py`**: RiskEngine with deque-based rolling history (10 snapshots), signal sign-change detection
+- **`total_goals_engine.py`**: Added `scan_lines()` method for multi-line Poisson O/U (handles half/whole/quarter lines)
+
+### Changed
+- `QuantTerminal.jsx`: Integrated 7 new components, version bumped to v2.0
+- `mapPayload.js`: Added scanner, goalWindow, risk, lineMovement mappers
+- `i18n.js`: Added 8 new translation keys (EN/ZH)
+- `main.py`: Integrated GoalWindowEngine, RiskEngine, line movement tracking in both demo and live modes
+
+---
+
 ## [v1.2.0] — 2026-02-27
 
 ### Added — λ_live Total Goals O/U Engine

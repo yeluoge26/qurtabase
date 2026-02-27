@@ -6,11 +6,18 @@ import EventTape from "./components/EventTape";
 import MarketEdge from "./components/MarketEdge";
 import ExplainPanel from "./components/ExplainPanel";
 import TotalGoalsPanel from "./components/TotalGoalsPanel";
+import OUScanner from "./components/OUScanner";
 import ReportBanner from "./components/ReportBanner";
+import GoalWindow from "./components/GoalWindow";
+import RiskPanel from "./components/RiskPanel";
+import LineMovement from "./components/LineMovement";
+import SignalCooldownBar from "./components/SignalCooldownBar";
+import EdgeHeatBar from "./components/EdgeHeatBar";
+import ModelCycleTimer from "./components/ModelCycleTimer";
 
 /*
  * ═══════════════════════════════════════════════════════════════════
- *  AI FOOTBALL QUANT TERMINAL v1.1
+ *  AI FOOTBALL QUANT TERMINAL v2.0
  *  Bloomberg-style probability analytics terminal
  *
  *  v1.1: meta bar, market/edge, event tape, explain, uncertainty, report
@@ -220,6 +227,9 @@ export default function QuantTerminal({ matchId = "demo" }) {
       {/* ═══ REPORT BANNER ═══ */}
       <ReportBanner report={d.report} />
 
+      {/* ═══ GOAL WINDOW BANNER ═══ */}
+      <GoalWindow data={d.goalWindow} />
+
       {/* ═══ MAIN GRID ═══ */}
       <div style={sty.mainGrid}>
 
@@ -261,6 +271,44 @@ export default function QuantTerminal({ matchId = "demo" }) {
           {/* v1.2 Total Goals O/U Engine */}
           {d.totalGoals && (
             <TotalGoalsPanel totalGoals={d.totalGoals} quant={d.quant} />
+          )}
+
+          {/* v2.0 Edge Heat Bar */}
+          {d.totalGoals && (
+            <div style={{ padding: "4px 14px" }}>
+              <EdgeHeatBar edge={d.totalGoals.edge || 0} />
+            </div>
+          )}
+
+          {/* v2.0 Signal Cooldown Bar */}
+          {d.totalGoals && (
+            <div style={{ padding: "0 14px 4px" }}>
+              <SignalCooldownBar
+                signalState={
+                  d.totalGoals.in_cooldown ? "cooldown"
+                  : d.totalGoals.signal !== "NO SIGNAL" ? "ready"
+                  : (d.totalGoals.edge || 0) > 2 ? "building"
+                  : "monitoring"
+                }
+                cooldownSec={d.totalGoals.cooldown_remaining_sec || 0}
+                cooldownTotal={180}
+              />
+            </div>
+          )}
+
+          {/* v2.0 O/U Scanner (multi-line) */}
+          {d.totalGoals?.scanner && (
+            <OUScanner data={d.totalGoals.scanner} label={t.ouScanner} />
+          )}
+
+          {/* Line Movement */}
+          {d.lineMovement && (
+            <LineMovement data={d.lineMovement} label={t.lineMovement} />
+          )}
+
+          {/* Risk Panel */}
+          {d.risk && (
+            <RiskPanel data={d.risk} label={t.riskPanel} />
           )}
 
           {/* v1.1 Explain (Pro) */}
@@ -434,12 +482,21 @@ export default function QuantTerminal({ matchId = "demo" }) {
             <SectionHead label="EVENT TAPE" right={`LAST ${Math.min(5, d.events.length)}`} />
             <EventTape events={d.events} maxShow={5} />
           </div>
+
+          {/* v2.0 Model Cycle Timer */}
+          <div style={sty.section}>
+            <ModelCycleTimer
+              state={d.totalGoals?.in_cooldown ? "recalculating" : "monitoring"}
+              nextEvalSec={d.totalGoals?.cooldown_remaining_sec || 30}
+              volatility={d.risk?.market_volatility || "Medium"}
+            />
+          </div>
         </div>
       </div>
 
       {/* ═══ FOOTER ═══ */}
       <div style={sty.footer}>
-        <span style={{ color: C.textMuted }}>AI FOOTBALL QUANT TERMINAL v1.1 &copy; 2026</span>
+        <span style={{ color: C.textMuted }}>AI FOOTBALL QUANT TERMINAL v2.0 &copy; 2026</span>
         <span style={{ color: C.textMuted }}>
           SEQ {d.meta.seq} | REFRESH 2s | MODEL XGB+POISSON | {d.minute}'/90'
         </span>

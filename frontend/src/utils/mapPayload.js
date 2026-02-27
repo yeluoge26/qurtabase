@@ -112,6 +112,15 @@ export function mapPayload(raw) {
 
     // Total Goals (O/U engine)
     totalGoals: mapTotalGoals(raw.total_goals),
+
+    // Goal Window detection
+    goalWindow: mapGoalWindow(raw.goal_window),
+
+    // Risk Panel
+    risk: mapRisk(raw.risk),
+
+    // Line Movement
+    lineMovement: mapLineMovement(raw.line_movement),
   };
 }
 
@@ -138,5 +147,53 @@ function mapTotalGoals(tg) {
     cooldown_remaining_sec: tg.cooldown_remaining_sec ?? 0,
     confidence: tg.confidence ?? null,
     ci95: tg.ci95 ?? null,
+    scanner: mapScanner(tg.scanner),
+  };
+}
+
+function mapScanner(scanner) {
+  if (!scanner || !Array.isArray(scanner)) return null;
+  return scanner.map(row => ({
+    line: row.line ?? 0,
+    over_prob: row.over_prob ?? 0,
+    under_prob: row.under_prob ?? 0,
+    market_over_prob: row.market_over_prob ?? null,
+    edge: row.edge ?? null,
+    is_active: row.is_active ?? false,
+  }));
+}
+
+function mapGoalWindow(gw) {
+  if (!gw) return null;
+  return {
+    active: gw.active ?? false,
+    confidence: gw.confidence ?? 0,
+    estimated_duration_min: gw.estimated_duration_min || "",
+    elapsed_sec: gw.elapsed_sec ?? 0,
+    tempo_c: gw.tempo_c ?? 0,
+    lambda_rate: gw.lambda_rate ?? 0,
+  };
+}
+
+function mapRisk(r) {
+  if (!r) return null;
+  return {
+    model_variance: r.model_variance ?? 0,
+    signal_stability: r.signal_stability ?? 100,
+    market_volatility: r.market_volatility || "Medium",
+    drawdown_guard: r.drawdown_guard || "Active",
+  };
+}
+
+function mapLineMovement(lm) {
+  if (!lm) return null;
+  return {
+    current_line: lm.current_line ?? 2.5,
+    previous_line: lm.previous_line ?? 2.5,
+    over_odds: lm.over_odds ?? 1.90,
+    over_odds_prev: lm.over_odds_prev ?? 1.90,
+    under_odds: lm.under_odds ?? 1.90,
+    direction: lm.direction || "NEUTRAL",
+    pressure: lm.pressure || "NEUTRAL",
   };
 }
