@@ -1,0 +1,76 @@
+{
+  "feature_names": [
+    "odds_home_prob",
+    "odds_draw_prob",
+    "odds_away_prob",
+    "odds_home_minus_away",
+    "b365_home_prob",
+    "b365_draw_prob",
+    "b365_away_prob",
+    "elo_diff",
+    "elo_diff_norm",
+    "home_elo_norm",
+    "away_elo_norm",
+    "is_home",
+    "xg_diff",
+    "xg_total",
+    "home_xg",
+    "away_xg",
+    "home_form",
+    "away_form",
+    "form_diff",
+    "home_attack",
+    "away_attack",
+    "home_defense",
+    "away_defense",
+    "attack_diff",
+    "defense_diff"
+  ],
+  "n_features": 25,
+  "n_classes": 3,
+  "class_names": [
+    "Away",
+    "Draw",
+    "Home"
+  ],
+  "class_mapping": {
+    "A": 0,
+    "D": 1,
+    "H": 2
+  },
+  "training_data": {
+    "n_matches": 23524,
+    "n_leagues": 6,
+    "n_seasons": 10,
+    "date_range": [
+      "2015-08-07 00:00:00",
+      "2025-05-25 00:00:00"
+    ]
+  },
+  "evaluation": {
+    "logistic": {
+      "mean_accuracy": 0.5656632653061224,
+      "std_accuracy": 0.005236990783818914,
+      "mean_logloss": 0.9047667172481745,
+      "mean_brier_home": 0.1889270100406249,
+      "mean_brier_draw": 0.18376711970999224,
+      "mean_brier_away": 0.1635500330059903
+    },
+    "xgboost": {
+      "mean_accuracy": 0.5593367346938776,
+      "std_accuracy": 0.010436885140144623,
+      "mean_logloss": 0.93014882696403,
+      "mean_brier_home": 0.19392459690570832,
+      "mean_brier_draw": 0.187924063205719,
+      "mean_brier_away": 0.16719097793102264
+    },
+    "calibrated": {
+      "mean_accuracy": 0.5631122448979592,
+      "std_accuracy": 0.0074016528428676445,
+      "mean_logloss": 0.9257438107223873,
+      "mean_brier_home": 0.19133879635654183,
+      "mean_brier_draw": 0.1847858085916173,
+      "mean_brier_away": 0.1653687820446883
+    }
+  }
+}

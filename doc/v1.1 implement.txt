@@ -1,0 +1,443 @@
+Implementation Guide v1.1: Bloomberg Terminal Style → Production + Monetization
+
+定位：Real-Time Football Quant Analytics Terminal（金融终端风）
+合规：Data Visualization Only（无比赛画面/音频/过程复刻）
+目标：不露脸、可规模化、快速变现（会员分层）
+
+0. v1.1 变更摘要（相对 v1.0）
+✅ 新增（必须上）
+
+Meta/Latency/Health：数据延迟、来源、最后更新时间、健康状态（OK/DEGRADED/STALE）
+
+Event Tape：事件流（进球/红黄牌/换人/VAR），提升“直播感”与留存
+
+Market vs AI：市场隐含概率 + Edge（AI - Market），快速变现核心
+
+Explain (Why Δ)：概率变化原因 Top Factors（增强信任）
+
+Uncertainty & Calibration：CI95 区间、滚动 Brier、Sharpness（更专业/Elite 卖点）
+
+HT/FT Auto Report：半场/全场报告导出（做内容矩阵）
+
+✅ 修复/规范化
+
+WebSocket 重连逻辑（避免多连接/未绑定事件）
+
+字段命名统一为 snake_case（payload）+ 前端映射
+
+Delta 来源明确：后端 per-match state 或 Redis 保存 last probabilities
+
+1. 总览 Overview
+
+你现在有的：
+
+quant-terminal.jsx（React 原型：模拟数据 + 终端风 UI）
+
+你需要做的：
+
+原型 (JSX)
+  → 独立 React 项目
+    → WS 接入真实比赛数据
+      → 预测模型推理（XGB baseline + live adjust）
+        → Quant/Explain/Market/Uncertainty 计算
+          → FastAPI WS 广播 + Redis 缓存
+            → OBS 推流 YouTube
+              → 会员分层（Free/Pro/Elite）
+                → 自动报告（HT/FT）+ 内容矩阵
+2. 技术栈清单 Tech Stack
+Frontend
+
+React 18 + Vite
+
+原生 WebSocket（低延迟）
+
+SVG Sparkline（轻量，不引入图表库）
+
+字体：IBM Plex Mono + Noto Sans SC
+
+可选：Service Worker/IndexedDB（缓存 recent events & snapshots）
+
+Backend
+
+FastAPI（REST + WebSocket）
+
+Redis（缓存 + pubsub 广播）
+
+APScheduler/Celery（抓取任务 + 推理调度）
+
+推理：scikit-learn / XGBoost + live adjustment（Poisson/heuristic）
+
+模型存储：joblib/pickle
+
+Data Source（建议正规）
+
+比分/统计/事件：API-Football / SportRadar / StatsPerform
+
+赔率：The Odds API / BetsAPI（合规购买）
+
+历史训练：football-data.co.uk CSV（baseline）
+
+3. 项目结构 Project Structure（v1.1）
+football-quant-terminal/
+├── frontend/
+│   └── src/
+│       ├── QuantTerminal.jsx
+│       ├── hooks/
+│       │   └── useMatchWS.js        # v1.1 重连 + 心跳 + 状态
+│       ├── utils/
+│       │   ├── mapPayload.js        # snake_case → UI fields
+│       │   └── format.js
+│       └── components/
+│           ├── EventTape.jsx        # v1.1 新增
+│           ├── MarketEdge.jsx       # v1.1 新增
+│           ├── ExplainPanel.jsx     # v1.1 新增
+│           └── ReportBanner.jsx     # v1.1 新增（HT/FT）
+│
+├── backend/
+│   ├── main.py
+│   ├── config.py
+│   ├── ws/
+│   │   └── manager.py              # 连接管理 + 广播
+│   ├── services/
+│   │   ├── live_fetcher.py         # 拉取 live + events + stats
+│   │   ├── odds_fetcher.py         # 拉取 odds
+│   │   ├── feature_builder.py      # 特征工程（赛前/赛中）
+│   │   ├── predictor.py            # 推理 + live_adjust
+│   │   ├── quant_engine.py         # quant 指标
+│   │   ├── explain_engine.py       # why Δ
+│   │   ├── market_engine.py        # implied prob + edge
+│   │   └── uncertainty_engine.py   # CI95 + calibration
+│   ├── store/
+│   │   ├── redis_cache.py
+│   │   └── match_state.py          # per-match prev probs / rolling metrics
+│   └── training/
+│       ├── train.py
+│       ├── features.py
+│       └── data/matches.csv
+│
+├── docker-compose.yml
+└── nginx.conf
+4. 数据协议：统一 JSON Schema（v1.1）
+
+强制：payload snake_case；前端负责映射为 UI 字段。
+强制：每条推送携带 meta，用来做专业级状态展示与容错。
+
+4.1 WebSocket 推送结构（推荐）
+{
+  "meta": {
+    "match_id": "2915932",
+    "source": {
+      "live": "api-football",
+      "odds": "the-odds-api"
+    },
+    "last_update_ts": 1700000000,
+    "data_delay_sec": 30,
+    "health": "OK",
+    "seq": 10233
+  },
+
+  "match": {
+    "league": "EPL",
+    "round": "R28",
+    "minute": 68,
+    "half": "H2",
+    "score": "1-0",
+    "home": {"code": "ARS", "name": "Arsenal"},
+    "away": {"code": "CHE", "name": "Chelsea"}
+  },
+
+  "probability": {
+    "home": 64.21,
+    "draw": 22.08,
+    "away": 13.71,
+    "delta_home": 2.11,
+    "delta_draw": -0.84,
+    "delta_away": -1.27,
+    "model_confidence": 83
+  },
+
+  "market": {
+    "implied_prob": {"home": 58.10, "draw": 23.30, "away": 18.60},
+    "edge": {"home": 6.11, "draw": -1.22, "away": -4.89},
+    "odds": {"home": 1.72, "draw": 3.80, "away": 4.90}
+  },
+
+  "stats": {
+    "shots": [15, 8],
+    "shots_on_target": [5, 4],
+    "shots_off_target": [10, 4],
+    "xg": [1.23, 0.78],
+    "dangerous_attacks": [38, 32],
+    "corners": [6, 3],
+    "possession": [45, 55],
+    "pass_accuracy": [85, 81],
+    "fouls": [10, 12],
+    "yellow_cards": [1, 2],
+    "red_cards": [0, 0],
+    "offsides": [2, 1],
+    "saves": [3, 4]
+  },
+
+  "events": [
+    {"id": "e102", "minute": 67, "type": "GOAL", "team": "HOME", "text": "GOAL — ARS"},
+    {"id": "e101", "minute": 62, "type": "YELLOW", "team": "AWAY", "text": "YELLOW — CHE"}
+  ],
+
+  "quant": {
+    "pressure_index": 74,
+    "momentum_score": 12,
+    "volatility_index": 0.82,
+    "risk_of_concede": 32,
+    "expected_goal_window_min": [5, 10],
+    "model_variance": 0.112,
+    "xg_delta": 0.45
+  },
+
+  "uncertainty": {
+    "ci95_home": [61.0, 67.4],
+    "ci95_draw": [20.1, 24.8],
+    "ci95_away": [11.5, 16.2],
+    "brier_rolling_20m": 0.18,
+    "sharpness": 0.62,
+    "mc_runs": 10000
+  },
+
+  "explain": {
+    "summary": "ΔHOME ↑ due to pressure + shots on target",
+    "top_factors": [
+      {"name": "shots_on_target_delta", "impact": 0.9},
+      {"name": "pressure_index_delta", "impact": 0.6},
+      {"name": "red_card_impact", "impact": 0.0}
+    ]
+  },
+
+  "report": {
+    "half_time_ready": false,
+    "full_time_ready": false,
+    "snapshot_url": null
+  }
+}
+5. UI 规范补充（Bloomberg Style v1.1）
+5.1 顶部 State Bar（必须新增 Meta 状态）
+
+显示内容建议固定顺序：
+
+LEAGUE | ROUND | HOME SCORE AWAY | MIN | HALF
+
+DELAY 30s | HEALTH OK | SRC LIVE:api-football | ODDS:the-odds-api
+
+Health 映射
+
+OK：绿色点
+
+DEGRADED（缺 stats/odds）：黄色点
+
+STALE（超过 N 秒未更新）：红色点 + “STALE”
+
+5.2 Probability 区（新增 Market & Edge）
+
+在 1X2 下方增加两行：
+
+MKT IMPLIED：市场隐含概率（Pro 可见）
+
+EDGE (AI-MKT)：差值（Pro 可见）
+
+变现：Free 只显示 AI；Pro 解锁 Market + Edge。
+
+5.3 Trend 区（建议加“关键提示”）
+
+在 Trend 上方小提示条（不花哨）：
+
+VOL SPIKE、GOAL WINDOW HIGH、DATA STALE 等（来自 quant/meta）
+
+5.4 Stats 区（增加 Events Tape）
+
+右侧 Stats 下方加入 EVENT TAPE (LAST 5)：
+
+只显示事实事件（Goal/Card/Sub/VAR/Penalty）
+
+不展示逐回合进攻，不做动画复刻
+
+5.5 Explain 区（Why Δ）
+
+放在 Probability 下方或 Quant 下方：
+
+WHY ΔHOME +2.11%
+
+top 3 factors（带 ▲/▼）
+
+5.6 Uncertainty 区（Elite）
+
+CI95 区间、Brier rolling、MC runs
+Elite 才显示，是高级用户愿意付费的“专业证据”。
+
+5.7 Report Banner（HT/FT）
+
+半场/全场出现：
+
+HT REPORT READY — PRESS [R] TO EXPORT
+
+FT REPORT READY — PRESS [R] TO EXPORT
+
+6. WebSocket 规范（v1.1 必改）
+6.1 前端 WS Hook：正确重连（退避 + 单实例 + 心跳）
+
+v1.0 的 onclose 里直接 new WebSocket 会导致：
+
+多连接
+
+新 ws 没绑定 onmessage
+
+无退避策略
+
+推荐实现原则
+
+connect() 统一创建与绑定事件
+
+退避重连：3s → 5s → 8s → 13s
+
+心跳：每 15s 发送 ping（或依赖 meta.last_update_ts 判定 STALE）
+
+（这里给规范，不贴完整代码，避免你复制时混入旧逻辑。你要我也可以给完整 hook 版本。）
+
+6.2 后端 WS：delta 与 rolling 指标必须在后端维护
+
+delta_* 由后端基于 match_state.last_probability 计算
+
+uncertainty.brier_rolling_20m 也在后端 rolling 更新
+
+前端只展示，不负责业务逻辑
+
+7. 后端实现（v1.1 关键点）
+7.1 match_state（Redis / 内存）必须存：
+
+last probability（home/draw/away）
+
+last update ts
+
+last events ids（去重）
+
+rolling calibration buffer（Brier window）
+
+market odds last（用于 implied）
+
+7.2 推送频率（建议）
+
+WS 主推送：2s（概率 + meta）
+
+stats/events 缺失时仍推送（health=DEGRADED）
+
+7.3 数据缺失容错
+
+stats 缺：返回 0/None，但 health=DEGRADED
+
+odds 缺：market 置空，但 AI 仍可推
+
+超过 N 秒没更新：health=STALE，前端提示
+
+8. 训练与评估（v1.1 补强）
+8.1 Baseline（快速上线）
+
+赔率隐含概率（Market implied）是极强 baseline
+
+XGB 训练只是 “增强器”
+
+8.2 指标必须补充
+
+Accuracy 不够：必须加 Brier Score（校准）
+
+建议在训练脚本里输出：
+
+Brier
+
+LogLoss
+
+Calibration curve（后续）
+
+9. 会员分层（变现方案 v1.1）
+Free
+
+1X2 AI probability
+
+Trend（prob/pressure/xG）
+
+基础 stats
+
+事件流（只显示 3 条）
+
+Pro（快速变现核心）
+
+Market implied + Edge
+
+Explain (Why Δ)
+
+全量 Event Tape（5-8条）
+
+Quant：Pressure/Volatility/Risk/Goal Window
+
+Elite
+
+Uncertainty：CI95、Brier rolling、MC runs、Sharpness
+
+多比赛终端（未来）
+
+HT/FT 报告导出 + 历史回放
+
+10. OBS 配置（v1.1 专业版）
+Browser Source
+
+URL：http://localhost:5173
+
+1920x1080
+
+✅ Scene active refresh
+
+✅ Shutdown when not visible
+
+输出（建议）
+
+1080p / 30fps（终端 UI 不需要 60）
+
+4500–6000 kbps
+
+Keyframe 2s
+
+专业增强（非必须）
+
+添加一个“系统提示音”（Goal/Red card）——极低音量
+
+加 DATA DELAY xx s 明显显示（合规 + 专业）
+
+11. Launch SOP（v1.1）
+
+启动 docker-compose
+
+检查：
+
+/health
+
+ws://.../ws/{match_id} 有连续 seq
+
+meta.health 为 OK/DEGRADED 可接受
+
+OBS Browser Source 打开
+
+开播前 10 分钟跑“预热画面”（显示 upcoming fixtures / warm-up state）
+
+半场与全场导出 report（用于短视频/复盘）
+
+12. 下一步优先级（按收益排序）
+
+meta.delay/health/source（专业度立刻提升）
+
+Event Tape（直播感+留存）
+
+Market vs AI + Edge（变现核心）
+
+WS 重连 + 心跳（稳定=专业）
+
+Explain Top Factors（信任+付费）
+
+CI95 + Brier rolling（Elite 卖点）
+
+HT/FT Report（内容矩阵）

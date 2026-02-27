@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+frontend/dist/
+*.pyc
+__pycache__/
+
+# Environment
+.env
+.env.local
+
+# Models (large binary files)
+backend/models/trained/*.pkl
+backend/models/trained/*.joblib
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Training data (large CSV files)
+backend/training/data/real/
+backend/training/data/understat/
+backend/training/data/matches.csv
+
+# Claude Code internal
+.claude/
+
+# Logs
+*.log

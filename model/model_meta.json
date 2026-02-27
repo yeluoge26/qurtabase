@@ -1,0 +1,29 @@
+{
+  "feature_names": [
+    "odds_home_prob",
+    "odds_draw_prob",
+    "odds_away_prob",
+    "odds_home_minus_away",
+    "elo_diff",
+    "elo_diff_norm",
+    "home_elo_norm",
+    "away_elo_norm",
+    "is_home",
+    "xg_diff",
+    "xg_total",
+    "home_xg",
+    "away_xg"
+  ],
+  "n_features": 13,
+  "n_classes": 3,
+  "class_names": [
+    "Away",
+    "Draw",
+    "Home"
+  ],
+  "class_mapping": {
+    "A": 0,
+    "D": 1,
+    "H": 2
+  }
+}
