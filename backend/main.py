@@ -89,6 +89,9 @@ tts_engine = TTSEngine()
 broadcast_engine = BroadcastEngine() if BroadcastEngine else None
 state_store = MatchStateStore()
 
+from services.league_predictions import LeaguePredictionService
+league_predictions = LeaguePredictionService()
+
 # Managed matches (admin-controlled)
 managed_matches: dict[str, dict] = {}
 
@@ -500,6 +503,32 @@ async def get_live_matches():
 
     # 4) No matches available
     return []
+
+
+@app.get("/api/predictions/leagues")
+async def get_league_predictions():
+    """Return per-league predictions + backtest stats for dashboard."""
+    predictions = league_predictions.predictions
+    by_league = _backtest_data.get("by_league", {}) if _backtest_data else {}
+
+    league_list = []
+    for league_name, pred in predictions.items():
+        backtest = by_league.get(league_name, {})
+        league_list.append({
+            **pred,
+            "backtest_accuracy": backtest.get("accuracy", 0),
+            "backtest_total": backtest.get("total", 0),
+            "backtest_correct": backtest.get("correct", 0),
+        })
+
+    league_list.sort(key=lambda x: x.get("backtest_accuracy", 0), reverse=True)
+
+    return {
+        "leagues": league_list,
+        "model_stats": _backtest_data,
+        "last_refresh": league_predictions.last_refresh,
+        "league_count": len(league_list),
+    }
 
 
 @app.get("/api/admin/fixtures")
@@ -1473,6 +1502,19 @@ async def startup():
     print(f"  Odds: {'The Odds API' if settings.has_odds else 'None'}")
     print(f"  Model: {'Loaded' if get_predictor() else 'Not found (fallback)'}")
     print("=" * 50)
+
+    # Start league prediction refresh loop
+    asyncio.create_task(_league_prediction_loop())
+
+
+async def _league_prediction_loop():
+    """Refresh league predictions on startup, then every 30 minutes."""
+    while True:
+        try:
+            await league_predictions.refresh()
+        except Exception as e:
+            print(f"[LeaguePredictions] Error: {e}")
+        await asyncio.sleep(1800)
 
 
 # ── Mount admin static files (after all routes) ─────────────
