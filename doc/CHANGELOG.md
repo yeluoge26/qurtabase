@@ -5,6 +5,27 @@
 
 ---
 
+## [v2.2.0] — 2026-02-28
+
+### Added — AI Voice Commentary System (P3)
+- **`tts_engine.py`**: Edge TTS integration (en-US-GuyNeural / zh-CN-YunxiNeural), -10% rate, async MP3 generation
+- **`POST /announce`**: TTS endpoint — accepts text + lang, returns MP3 audio bytes
+- **`broadcast_engine.py`**: 10-stage bilingual script templates (2 variants each), trigger rules engine with priority system
+- **Trigger rules**: Goal/Red card (critical, mandatory), Edge ≥4% (SIGNAL_PENDING), Edge ≥6% (SIGNAL_CONFIRM), λ shift >8%, Tempo >70, Late Game (60min+), Final Window (80min+)
+- **Cooldown system**: 90s global non-critical, 60s post-goal, 30s post-red-card; critical bypasses cooldown
+- **`AISpeakingIndicator.jsx`**: Pulsing gold indicator with audio wave bars animation, "AI SPEAKING..." / "AI READY" status
+- **`BroadcastBar.jsx`**: Ticker-style broadcast bar with stage badge (color-coded), cooldown countdown timer
+- **`useVoiceHighlight.js`**: Panel highlight hook mapping broadcast stages to panel glow effects (0.8s fade)
+
+### Changed
+- `QuantTerminal.jsx`: Integrated AISpeakingIndicator (top-right), BroadcastBar (above footer), useVoiceHighlight
+- `main.py`: Added BroadcastEngine + TTSEngine, broadcast state tracking, _compute_broadcast() in demo/live loops, signal confirm triggers Stage 5 broadcast, post-match triggers Stage 10
+- `mapPayload.js`: Added broadcast mapper (text, stage, priority, speaking, cooldown_remaining)
+- `i18n.js`: Added 8 new keys (EN/ZH) for AI speaking, broadcast stages
+- `requirements.txt`: Added `edge-tts==6.1.19`
+
+---
+
 ## [v2.1.0] — 2026-02-28
 
 ### Added — Signal Control & Track Record (P2)

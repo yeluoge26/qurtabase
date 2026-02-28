@@ -18,6 +18,9 @@ import EventAlert from "./components/EventAlert";
 import TrackRecord from "./components/TrackRecord";
 import SignalControlPanel from "./components/SignalControlPanel";
 import PostMatchSummary from "./components/PostMatchSummary";
+import AISpeakingIndicator from "./components/AISpeakingIndicator";
+import BroadcastBar from "./components/BroadcastBar";
+import { useVoiceHighlight, getHighlightStyle } from "./hooks/useVoiceHighlight";
 
 /*
  * ═══════════════════════════════════════════════════════════════════
@@ -148,6 +151,9 @@ export default function QuantTerminal({ matchId = "demo" }) {
   const { data: rawData, connected, health } = useMatchData(matchId);
   const d = rawData ? mapPayload(rawData) : null;
 
+  // AI Voice highlight
+  const highlights = useVoiceHighlight(d?.broadcast?.speaking, d?.broadcast?.stage);
+
   // Accumulate history
   useEffect(() => {
     if (!d) return;
@@ -235,6 +241,11 @@ export default function QuantTerminal({ matchId = "demo" }) {
           {health === "STALE" && <AlertBadge label="DATA STALE" bg="#FF3D0025" color="#FF3D00" />}
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: healthColor, animation: connected ? "blink 2s infinite" : "none" }} />
           <span style={{ fontSize: 8, color: healthColor, letterSpacing: 2, fontWeight: 700 }}>{health}</span>
+          <AISpeakingIndicator
+            speaking={d.broadcast?.speaking || false}
+            text={d.broadcast?.text || ""}
+            lang={lang}
+          />
           <button onClick={() => setLang(l => l === "en" ? "zh" : "en")} style={sty.langBtn}>{t.switchLang}</button>
         </div>
       </div>
@@ -532,6 +543,14 @@ export default function QuantTerminal({ matchId = "demo" }) {
           )}
         </div>
       </div>
+
+      {/* ═══ BROADCAST BAR ═══ */}
+      <BroadcastBar
+        broadcast={d.broadcast}
+        cooldownSec={d.broadcast?.cooldown_remaining || 0}
+        lang={lang}
+        L={t}
+      />
 
       {/* ═══ FOOTER ═══ */}
       <div style={sty.footer}>

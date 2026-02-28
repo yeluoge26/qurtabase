@@ -16,6 +16,7 @@ import math
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -37,6 +38,11 @@ from services.goal_window_engine import GoalWindowEngine
 from services.risk_engine import RiskEngine
 from services.post_match_engine import PostMatchEngine
 from services.performance_tracker import PerformanceTracker
+from services.tts_engine import TTSEngine
+try:
+    from services.broadcast_engine import BroadcastEngine
+except ImportError:
+    BroadcastEngine = None
 from store.match_state import MatchStateStore
 
 app = FastAPI(title="Football Quant Terminal API", version="1.1.0")
@@ -63,12 +69,25 @@ goal_window_engine = GoalWindowEngine()
 risk_engine = RiskEngine()
 post_match_engine = PostMatchEngine()
 performance_tracker = PerformanceTracker()
+tts_engine = TTSEngine()
+broadcast_engine = BroadcastEngine() if BroadcastEngine else None
 state_store = MatchStateStore()
 
 # Managed matches (admin-controlled)
 managed_matches: dict[str, dict] = {}
 
 predictor = None
+
+# ── Broadcast State ──────────────────────────────────────────
+broadcast_state = {
+    "text": "",
+    "stage": "",
+    "priority": "normal",
+    "timestamp": 0,
+    "speaking": False,
+    "cooldown_remaining": 0,
+    "speak_until": 0,
+}
 
 # ── Signal Control State (per match) ─────────────────────────
 # State machine: idle → ready → (confirmed → cooldown) → idle/ready
@@ -152,6 +171,77 @@ def _compute_signal_control(match_id: str, edge: float, line: float,
         "edge": round(ss["edge"], 1),
         "confirmed_at": ss["confirmed_at"],
         "cooldown_remaining": ss.get("cooldown_remaining", 0),
+    }
+
+
+def _compute_broadcast(data, lang="en"):
+    """
+    Evaluate broadcast triggers from the current tick payload and return
+    the broadcast section for the WebSocket payload.
+    """
+    global broadcast_state
+
+    if not broadcast_engine:
+        return {
+            "text": "",
+            "stage": "",
+            "priority": "normal",
+            "timestamp": 0,
+            "speaking": False,
+            "cooldown_remaining": 0,
+        }
+
+    now = time.time()
+
+    try:
+        match_data = {
+            "minute": data.get("match", {}).get("minute", 0),
+            "score": data.get("match", {}).get("score", "0-0"),
+            "home": data.get("match", {}).get("home", {}).get("name", "Home"),
+            "away": data.get("match", {}).get("away", {}).get("name", "Away"),
+            "league": data.get("match", {}).get("league", ""),
+            "lambda_live": data.get("total_goals", {}).get("lambda_live", 0),
+            "lambda_pre": data.get("total_goals", {}).get("lambda_pre", 0),
+            "lambda_rem": data.get("total_goals", {}).get("lambda_remaining", 0),
+            "edge": data.get("total_goals", {}).get("edge", 0),
+            "tempo": data.get("total_goals", {}).get("tempo_index", 50),
+            "signal_state": data.get("signal_control", {}).get("state", "idle"),
+            "line": data.get("total_goals", {}).get("line", 2.5),
+            "model_prob": data.get("total_goals", {}).get("final_prob_over", 0),
+            "events": data.get("events", []),
+        }
+
+        triggers = broadcast_engine.evaluate_triggers(match_data, lang)
+
+        if triggers:
+            top = triggers[0]
+            priority = top.get("priority", "normal")
+            if broadcast_engine.can_broadcast(priority):
+                broadcast_state["text"] = top.get("text", "")
+                broadcast_state["stage"] = top.get("stage", "")
+                broadcast_state["priority"] = priority
+                broadcast_state["timestamp"] = now
+                broadcast_state["speaking"] = True
+                broadcast_state["speak_until"] = now + 8
+                broadcast_engine.record_broadcast()
+
+        broadcast_state["cooldown_remaining"] = getattr(
+            broadcast_engine, "cooldown_remaining", 0
+        )
+
+        if now > broadcast_state.get("speak_until", 0):
+            broadcast_state["speaking"] = False
+
+    except Exception:
+        pass
+
+    return {
+        "text": broadcast_state.get("text", ""),
+        "stage": broadcast_state.get("stage", ""),
+        "priority": broadcast_state.get("priority", "normal"),
+        "timestamp": broadcast_state.get("timestamp", 0),
+        "speaking": broadcast_state.get("speaking", False),
+        "cooldown_remaining": broadcast_state.get("cooldown_remaining", 0),
     }
 
 
@@ -260,6 +350,25 @@ async def signal_confirm(body: SignalAction):
         ss["state"] = "confirmed"
         ss["confirmed_at"] = time.time()
         ss["cooldown_remaining"] = 0
+        # Trigger Stage 5 SIGNAL_CONFIRM broadcast
+        try:
+            if broadcast_engine:
+                sc_text = broadcast_engine.get_template(
+                    "SIGNAL_CONFIRM", "en",
+                    line=ss.get("line", 2.5),
+                    edge=ss.get("edge", 0),
+                    model_prob=ss.get("model_prob", 0),
+                )
+                if sc_text:
+                    broadcast_state["text"] = sc_text
+                    broadcast_state["stage"] = "SIGNAL_CONFIRM"
+                    broadcast_state["priority"] = "high"
+                    broadcast_state["timestamp"] = time.time()
+                    broadcast_state["speaking"] = True
+                    broadcast_state["speak_until"] = time.time() + 8
+                    broadcast_engine.record_broadcast()
+        except Exception:
+            pass
     elif body.action == "reject":
         if ss["state"] not in ("ready", "pending"):
             raise HTTPException(400, f"Cannot reject signal in state '{ss['state']}'.")
@@ -298,6 +407,25 @@ async def signal_get_state(match_id: str = "demo"):
 async def get_performance():
     """Return session performance summary."""
     return performance_tracker.get_summary()
+
+
+# ══════════════════════════════════════════════════════════════
+# TTS — Text-to-Speech Announcement
+# ══════════════════════════════════════════════════════════════
+
+class AnnounceRequest(BaseModel):
+    text: str
+    lang: str = "en"
+    template_key: Optional[str] = None  # reserved for future broadcast templates
+
+
+@app.post("/api/announce")
+async def announce(body: AnnounceRequest):
+    """Generate TTS audio from text and return as MP3."""
+    audio = await tts_engine.speak(body.text, lang=body.lang)
+    if audio is None:
+        raise HTTPException(500, "TTS generation failed — check server logs for details")
+    return Response(content=audio, media_type="audio/mpeg")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -526,7 +654,7 @@ class DemoSimulator:
             post_match = {"active": False}
 
         # ═══ v1.1 Full Payload ═══
-        return {
+        payload = {
             "meta": {
                 "match_id": "demo",
                 "source": {"live": "demo-simulator", "odds": odds_source},
@@ -565,6 +693,40 @@ class DemoSimulator:
             "performance": performance_tracker.get_summary(),
             "post_match": post_match,
         }
+
+        # ── Broadcast (computed after full payload is built) ──
+        try:
+            payload["broadcast"] = _compute_broadcast(payload, lang="en")
+            # Post-match broadcast: override with Stage 10 summary when full time
+            if self.minute >= 90 and report.get("full_time_ready") and broadcast_engine:
+                try:
+                    pm_text = broadcast_engine.get_template(
+                        "POST_MATCH", "en",
+                        home=payload["match"]["home"]["name"],
+                        away=payload["match"]["away"]["name"],
+                        score=payload["match"]["score"],
+                        summary=post_match,
+                    )
+                    if pm_text and broadcast_engine.can_broadcast("critical"):
+                        broadcast_state["text"] = pm_text
+                        broadcast_state["stage"] = "POST_MATCH"
+                        broadcast_state["priority"] = "critical"
+                        broadcast_state["timestamp"] = time.time()
+                        broadcast_state["speaking"] = True
+                        broadcast_state["speak_until"] = time.time() + 8
+                        broadcast_engine.record_broadcast()
+                        payload["broadcast"] = {
+                            "text": pm_text, "stage": "POST_MATCH", "priority": "critical",
+                            "timestamp": broadcast_state["timestamp"],
+                            "speaking": True, "cooldown_remaining": 0,
+                        }
+                except Exception:
+                    pass
+        except Exception:
+            payload["broadcast"] = {"text": "", "stage": "", "priority": "normal",
+                                     "timestamp": 0, "speaking": False, "cooldown_remaining": 0}
+
+        return payload
 
 
 # ══════════════════════════════════════════════════════════════
@@ -801,6 +963,38 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "performance": performance_tracker.get_summary(),
                         "post_match": post_match,
                     }
+
+                    # ── Broadcast (live mode) ──
+                    try:
+                        payload["broadcast"] = _compute_broadcast(payload, lang="en")
+                        # Post-match broadcast: override with Stage 10 summary when full time
+                        if minute >= 90 and report.get("full_time_ready") and broadcast_engine:
+                            try:
+                                pm_text = broadcast_engine.get_template(
+                                    "POST_MATCH", "en",
+                                    home=match_info["home"]["name"],
+                                    away=match_info["away"]["name"],
+                                    score=match_info["score"],
+                                    summary=post_match,
+                                )
+                                if pm_text and broadcast_engine.can_broadcast("critical"):
+                                    broadcast_state["text"] = pm_text
+                                    broadcast_state["stage"] = "POST_MATCH"
+                                    broadcast_state["priority"] = "critical"
+                                    broadcast_state["timestamp"] = time.time()
+                                    broadcast_state["speaking"] = True
+                                    broadcast_state["speak_until"] = time.time() + 8
+                                    broadcast_engine.record_broadcast()
+                                    payload["broadcast"] = {
+                                        "text": pm_text, "stage": "POST_MATCH", "priority": "critical",
+                                        "timestamp": broadcast_state["timestamp"],
+                                        "speaking": True, "cooldown_remaining": 0,
+                                    }
+                            except Exception:
+                                pass
+                    except Exception:
+                        payload["broadcast"] = {"text": "", "stage": "", "priority": "normal",
+                                                 "timestamp": 0, "speaking": False, "cooldown_remaining": 0}
 
                     await ws.send_json(payload)
 

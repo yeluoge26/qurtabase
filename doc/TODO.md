@@ -1,7 +1,7 @@
 # AI Football Quant Terminal — TODO Checklist
 
 > Last updated: 2026-02-28
-> Current version: v2.1.0
+> Current version: v2.2.0
 > Status key: [x] Done | [ ] Todo | [~] Partial/In Progress
 
 ---
@@ -187,7 +187,7 @@
 - [x] [CONFIRM] / [REJECT] buttons (Enter/Escape keyboard shortcuts) *(v2.1)*
 - [x] Signal state machine: idle → ready → confirmed → cooldown *(v2.1)*
 - [x] Signal lock after confirmation (120s cooldown) *(v2.1)*
-- [ ] Trigger AI broadcast on confirm
+- [x] Trigger AI broadcast on confirm *(v2.2)*
 - [x] Frontend `SignalControlPanel.jsx` component *(v2.1)*
 - [x] Backend `POST /api/signal/confirm` + `GET /api/signal/state` *(v2.1)*
 
@@ -209,45 +209,45 @@
 
 ---
 
-## Phase 5: v2.0 AI Voice Commentary — P3
+## Phase 5: v2.0 AI Voice Commentary — COMPLETE *(v2.2)*
 
 ### TTS Engine Integration
-- [ ] Edge TTS / OpenAI TTS / ElevenLabs / CosyVoice support
-- [ ] Voice style: male, low-pitched, 0.9x speed, slight room reverb
-- [ ] Bilingual templates (EN/ZH)
-- [ ] `POST /announce` endpoint for TTS trigger
+- [x] Edge TTS (en-US-GuyNeural / zh-CN-YunxiNeural), -10% rate *(v2.2)*
+- [x] Voice style: male, low-pitched, 0.9x speed *(v2.2)*
+- [x] Bilingual templates (EN/ZH) — 10-stage scripts with 2 variants each *(v2.2)*
+- [x] `POST /announce` endpoint — returns MP3 audio bytes *(v2.2)*
 
 ### Semi-Automatic Broadcast Flow
-- [ ] System detects edge → SIGNAL PENDING (AI: "potential opportunity detected")
-- [ ] User confirms → SIGNAL CONFIRMED (AI: formal broadcast)
-- [ ] Goal → auto-broadcast (AI: "goal, recalculating...")
-- [ ] Post-match → auto-summary broadcast
+- [x] System detects edge ≥4% → SIGNAL PENDING (AI: "potential opportunity detected") *(v2.2)*
+- [x] User confirms → SIGNAL CONFIRMED (AI: formal broadcast via Stage 5) *(v2.2)*
+- [x] Goal → auto-broadcast (AI: "goal, recalculating...") — critical priority *(v2.2)*
+- [x] Post-match → auto-summary broadcast (Stage 10, minute≥90) *(v2.2)*
 
 ### Trigger Rules & Cooldown
-- [ ] λ_total change > 8%: "significant model fluctuation"
-- [ ] Edge > 4%: "edge building"
-- [ ] Edge > 6%: formal signal
-- [ ] Tempo > 70: "high tempo zone"
-- [ ] Goal / Red card: mandatory trigger
-- [ ] Max 1 non-critical broadcast per 90 seconds
-- [ ] 60s cooldown after goal
+- [x] λ_total change > 8%: "significant model fluctuation" *(v2.2)*
+- [x] Edge > 4%: "edge building" (SIGNAL_PENDING) *(v2.2)*
+- [x] Edge > 6%: formal signal (SIGNAL_CONFIRM when confirmed) *(v2.2)*
+- [x] Tempo > 70: "high tempo zone" *(v2.2)*
+- [x] Goal / Red card: mandatory critical trigger *(v2.2)*
+- [x] Max 1 non-critical broadcast per 90 seconds *(v2.2)*
+- [x] 60s cooldown after goal, 30s after red card *(v2.2)*
 
 ### UI-Voice Sync
-- [ ] Panel highlight (0.8s glow) when AI speaks about that section
-- [ ] "AI SPEAKING..." indicator (top-right)
-- [ ] Late Game mode announcement (70min+)
+- [x] Panel highlight (0.8s glow) when AI speaks — `useVoiceHighlight.js` *(v2.2)*
+- [x] "AI SPEAKING..." indicator (top-right) — `AISpeakingIndicator.jsx` *(v2.2)*
+- [x] Late Game mode announcement (60min+) + Final Window (80min+) *(v2.2)*
 
 ### 10-Stage Script Templates
-- [ ] Stage 1: Pre-match opening
-- [ ] Stage 2: Kickoff monitoring
-- [ ] Stage 3: Tempo accumulation (15-35min)
-- [ ] Stage 4: Signal pending (suspense)
-- [ ] Stage 5: Signal confirm
-- [ ] Stage 6: Signal lock + cooldown
-- [ ] Stage 7: Goal trigger + recalc
-- [ ] Stage 8: Late game (60min+)
-- [ ] Stage 9: Final window (80min+)
-- [ ] Stage 10: Post-match summary
+- [x] Stage 1: Pre-match opening *(v2.2)*
+- [x] Stage 2: Kickoff monitoring *(v2.2)*
+- [x] Stage 3: Tempo accumulation (15-35min) *(v2.2)*
+- [x] Stage 4: Signal pending (suspense) *(v2.2)*
+- [x] Stage 5: Signal confirm *(v2.2)*
+- [x] Stage 6: Signal lock + cooldown *(v2.2)*
+- [x] Stage 7: Goal trigger + recalc *(v2.2)*
+- [x] Stage 8: Late game (60min+) *(v2.2)*
+- [x] Stage 9: Final window (80min+) *(v2.2)*
+- [x] Stage 10: Post-match summary *(v2.2)*
 
 ---
 

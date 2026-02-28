@@ -130,6 +130,9 @@ export function mapPayload(raw) {
 
     // Performance / Track Record
     performance: mapPerformance(raw.performance),
+
+    // Broadcast (AI Voice Commentary)
+    broadcast: mapBroadcast(raw.broadcast),
   };
 }
 
@@ -255,5 +258,17 @@ function mapPerformance(perf) {
       result: s.result || "pending",
       timestamp: s.timestamp ?? 0,
     })),
+  };
+}
+
+function mapBroadcast(b) {
+  if (!b) return null;
+  return {
+    text: b.text || "",
+    stage: b.stage || "",
+    priority: b.priority || "normal",
+    timestamp: b.timestamp || 0,
+    speaking: b.speaking ?? false,
+    cooldown_remaining: b.cooldown_remaining ?? 0,
   };
 }
