@@ -119,8 +119,8 @@ def _auto_record_prediction(match_id: str, prob: dict, confidence: float,
         if total_goals:
             pred_ou = total_goals.get("signal", "OVER")
             if pred_ou not in ("OVER", "UNDER"):
-                pred_ou = "OVER" if total_goals.get("model_prob_over", 50) > 50 else "UNDER"
-            ou_line = total_goals.get("line", 2.5)
+                pred_ou = "OVER" if (total_goals.get("model_prob_over") or 50) > 50 else "UNDER"
+            ou_line = total_goals.get("line") or 2.5
 
         _match_predictions[match_id] = {
             "predicted_1x2": pred_1x2,
@@ -272,10 +272,10 @@ def _compute_signal_control(match_id: str, edge: float, line: float,
     # Build payload
     return {
         "state": ss["state"],
-        "line": round(ss["line"], 2),
-        "model_prob": round(ss["model_prob"], 1),
-        "market_prob": round(ss["market_prob"], 1),
-        "edge": round(ss["edge"], 1),
+        "line": round(ss["line"] or 0, 2),
+        "model_prob": round(ss["model_prob"] or 0, 1),
+        "market_prob": round(ss["market_prob"] or 0, 1),
+        "edge": round(ss["edge"] or 0, 1),
         "confirmed_at": ss["confirmed_at"],
         "cooldown_remaining": ss.get("cooldown_remaining", 0),
     }
@@ -443,14 +443,65 @@ async def admin_toggle_live(match_id: str):
 
 @app.get("/api/matches/live")
 async def get_live_matches():
-    """List active matches for frontend."""
-    active = [m for m in managed_matches.values() if m.get("active")]
+    """List active matches for frontend.
+    Priority: managed active → API live → API latest finished → demo fallback
+    """
+    # 1) Managed active matches (admin-imported, excluding demo)
+    active = [m for m in managed_matches.values()
+              if m.get("active") and m.get("match_id") != "demo"]
     if active:
         return active
-    # Fallback: demo
+
+    # 2) Auto-discover from live API
+    if settings.ALLSPORTS_API_KEY:
+        try:
+            live_list = await allsports.fetch_live_matches()
+            if live_list:
+                out = []
+                for lm in live_list[:5]:
+                    mid = lm["id"]
+                    out.append({
+                        "match_id": mid,
+                        "league": lm.get("league", ""),
+                        "home_name": lm.get("home", "Home"),
+                        "away_name": lm.get("away", "Away"),
+                        "home_short": lm.get("home", "HOM")[:3].upper(),
+                        "away_short": lm.get("away", "AWY")[:3].upper(),
+                        "score": lm.get("score", "0 - 0"),
+                        "minute": lm.get("minute", 0),
+                        "status": lm.get("status", ""),
+                        "active": True,
+                        "mode": "live",
+                    })
+                return out
+        except Exception:
+            pass
+
+        # 3) No live matches — fetch latest finished
+        try:
+            latest = await allsports.fetch_latest_finished()
+            if latest:
+                return [{
+                    "match_id": latest["id"],
+                    "league": latest.get("league", ""),
+                    "home_name": latest.get("home", "Home"),
+                    "away_name": latest.get("away", "Away"),
+                    "home_short": latest.get("home", "HOM")[:3].upper(),
+                    "away_short": latest.get("away", "AWY")[:3].upper(),
+                    "score": latest.get("score", "0-0"),
+                    "minute": latest.get("minute", 90),
+                    "status": latest.get("status", "Finished"),
+                    "date": latest.get("date", ""),
+                    "active": True,
+                    "mode": "finished",
+                }]
+        except Exception:
+            pass
+
+    # 4) Fallback: demo
     return [{"match_id": "demo", "league": "EPL", "home_name": "Arsenal",
              "away_name": "Chelsea", "home_short": "ARS", "away_short": "CHE",
-             "active": True}]
+             "active": True, "mode": "demo"}]
 
 
 @app.get("/api/admin/fixtures")
@@ -1060,7 +1111,8 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
     await ws_manager.connect(ws, match_id)
     ms = state_store.get(match_id)
     try:
-        if match_id == "demo" or settings.demo_mode:
+        # Only use demo simulator when explicitly requesting "demo"
+        if match_id == "demo":
             sim = DemoSimulator()
             # Fetch real odds once at start, refresh periodically
             config = managed_matches.get(match_id, {})
@@ -1087,6 +1139,8 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
             prev_live_state = None
             live_prev_line = 2.5
             live_prev_over_odds = 1.90
+            _config_populated = bool(config)
+            _match_finished = False
 
             while True:
                 try:
@@ -1097,9 +1151,34 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         live = await sportmonks.fetch_match(api_id)
                     else:
                         live = await football_api.fetch_match(api_id)
-                    odds_data = await odds_api.fetch_odds(
-                        match_id, config.get("odds_sport", "soccer_epl"))
 
+                    # Auto-populate config from API response if not managed
+                    if not _config_populated:
+                        mi = live.get("match", {})
+                        config = {
+                            "match_id": match_id,
+                            "league": mi.get("league", ""),
+                            "round": mi.get("round", ""),
+                            "home_name": mi.get("home_name", "Home"),
+                            "away_name": mi.get("away_name", "Away"),
+                            "home_short": mi.get("home_short", "HOM"),
+                            "away_short": mi.get("away_short", "AWY"),
+                            "home_name_cn": "",
+                            "away_name_cn": "",
+                            "home_elo": 1500,
+                            "away_elo": 1500,
+                            "odds_sport": "soccer_epl",
+                        }
+                        _config_populated = True
+
+                    # Fetch odds (may be None for non-matched IDs)
+                    try:
+                        odds_data = await odds_api.fetch_odds(
+                            match_id, config.get("odds_sport", "soccer_epl"))
+                    except Exception:
+                        odds_data = None
+
+                    _match_finished = live.get("minute", 0) >= 90
                     live_state = {
                         "minute": live.get("minute", 0),
                         "home_goals": live.get("home_goals", 0),
@@ -1125,12 +1204,17 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         live_state["odds_away"] = odds_data.get("away", 3.5)
                         ms.last_odds_ts = time.time()
 
-                    # Predict
+                    # Predict (model may fail on feature mismatch — fallback to odds)
+                    pred_ok = False
                     if pred:
-                        result = pred.predict(live_state)
-                        prob = result["probability"]
-                        quant_data = result["quant"]
-                    else:
+                        try:
+                            result = pred.predict(live_state)
+                            prob = result["probability"]
+                            quant_data = result["quant"]
+                            pred_ok = True
+                        except Exception:
+                            pass
+                    if not pred_ok:
                         oh = live_state.get("odds_home", 2.0)
                         od = live_state.get("odds_draw", 3.5)
                         oa = live_state.get("odds_away", 3.5)
@@ -1288,10 +1372,10 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "risk": risk,
                         "signal_control": _compute_signal_control(
                             match_id,
-                            edge=total_goals.get("edge", 0),
-                            line=total_goals.get("line", 2.5),
-                            model_prob=total_goals.get("model_prob_over", 0),
-                            market_prob=total_goals.get("market_prob_over", 0),
+                            edge=total_goals.get("edge") or 0,
+                            line=total_goals.get("line") or 2.5,
+                            model_prob=total_goals.get("model_prob_over") or 0,
+                            market_prob=total_goals.get("market_prob_over") or 0,
                         ),
                         "performance": performance_tracker.get_summary(),
                         "post_match": post_match,
@@ -1346,7 +1430,8 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "meta": {"health": "DEGRADED", "error": str(e), "seq": ms.bump_seq()},
                     })
 
-                await asyncio.sleep(settings.WS_PUSH_INTERVAL)
+                # Slower polling for finished matches (10s vs 2s)
+                await asyncio.sleep(10 if _match_finished else settings.WS_PUSH_INTERVAL)
 
     except WebSocketDisconnect:
         ws_manager.disconnect(ws, match_id)
@@ -1384,6 +1469,11 @@ import os
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(_static_dir):
     app.mount("/admin", StaticFiles(directory=_static_dir, html=True), name="admin")
+
+# ── Mount frontend dist (React SPA) ──────────────────────────
+_frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend", "dist"))
+if os.path.isdir(_frontend_dist):
+    app.mount("/", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
 
 
 if __name__ == "__main__":

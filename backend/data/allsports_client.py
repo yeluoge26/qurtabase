@@ -151,6 +151,72 @@ class AllSportsClient:
             return []
         return results
 
+    async def fetch_latest_finished(self, league_ids: list = None) -> dict | None:
+        """Fetch the most recently finished match.
+        Tries livescore first (for just-finished), then today's fixtures."""
+        from datetime import datetime, timedelta
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
+        # 1) Check livescore for just-finished matches
+        results = await self._get("Livescore")
+        if isinstance(results, list):
+            finished = [ev for ev in results
+                        if ev.get("event_status", "") in ("Finished", "After Pen.", "After ET")]
+            if league_ids:
+                filtered = [ev for ev in finished
+                            if str(ev.get("league_key", "")) in league_ids]
+                if filtered:
+                    finished = filtered
+            if finished:
+                # Return the last one (most recent)
+                ev = finished[-1]
+                return self._ev_to_summary(ev)
+
+        # 2) Fallback: yesterday + today fixtures, find finished
+        for date_range in [(today, today), (yesterday, today)]:
+            results = await self._get("Fixtures", **{"from": date_range[0], "to": date_range[1]})
+            if isinstance(results, list):
+                finished = [ev for ev in results
+                            if ev.get("event_status", "") in ("Finished", "After Pen.", "After ET")]
+                if league_ids:
+                    filtered = [ev for ev in finished
+                                if str(ev.get("league_key", "")) in league_ids]
+                    if filtered:
+                        finished = filtered
+                if finished:
+                    ev = finished[-1]
+                    return self._ev_to_summary(ev)
+
+        return None
+
+    def _ev_to_summary(self, ev: dict) -> dict:
+        """Convert an AllSportsApi event to a summary dict."""
+        status = ev.get("event_status", "")
+        score = ev.get("event_final_result", "0 - 0")
+        parts = score.replace(" ", "").split("-")
+        h_goals = int(parts[0]) if parts[0].isdigit() else 0
+        a_goals = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+        return {
+            "id": str(ev.get("event_key", "")),
+            "league": ev.get("league_name", ""),
+            "league_key": str(ev.get("league_key", "")),
+            "round": ev.get("league_round", ""),
+            "home": ev.get("event_home_team", "Home"),
+            "away": ev.get("event_away_team", "Away"),
+            "home_id": ev.get("home_team_key"),
+            "away_id": ev.get("away_team_key"),
+            "score": score,
+            "home_goals": h_goals,
+            "away_goals": a_goals,
+            "minute": self._parse_minute(status),
+            "status": status,
+            "date": ev.get("event_date", ""),
+            "time": ev.get("event_time", ""),
+            "country": ev.get("country_name", ""),
+        }
+
     # ── Parsers ─────────────────────────────────────────────
 
     def _parse_minute(self, status: str) -> int:
@@ -212,60 +278,89 @@ class AllSportsClient:
         return result
 
     def _parse_events(self, ev: dict) -> list:
-        """Parse goalscorers + cards + substitutes into unified events list."""
+        """Parse goalscorers + cards + substitutes into unified events list.
+        Robust against varying API data formats across leagues."""
         events = []
 
         # Goals
         for g in ev.get("goalscorers", []) or []:
-            minute = self._parse_event_minute(g.get("time", ""))
-            scorer = g.get("home_scorer", "") or g.get("away_scorer", "")
-            team = "HOME" if g.get("home_scorer") else "AWAY"
-            events.append({
-                "id": f"g{minute}{team[0]}",
-                "minute": minute,
-                "type": "GOAL",
-                "team": team,
-                "text": f"GOAL — {scorer}" if scorer else "GOAL",
-            })
+            try:
+                if not isinstance(g, dict):
+                    continue
+                minute = self._parse_event_minute(g.get("time", ""))
+                scorer = g.get("home_scorer", "") or g.get("away_scorer", "")
+                team = "HOME" if g.get("home_scorer") else "AWAY"
+                events.append({
+                    "id": f"g{minute}{team[0]}",
+                    "minute": minute,
+                    "type": "GOAL",
+                    "team": team,
+                    "text": f"GOAL — {scorer}" if scorer else "GOAL",
+                })
+            except Exception:
+                continue
 
         # Cards
         for c in ev.get("cards", []) or []:
-            minute = self._parse_event_minute(c.get("time", ""))
-            card_type = c.get("card", "yellow card")
-            player = c.get("home_fault", "") or c.get("away_fault", "")
-            team = "HOME" if c.get("home_fault") else "AWAY"
-            ev_type = "RED" if "red" in card_type.lower() else "YELLOW"
-            events.append({
-                "id": f"c{minute}{team[0]}",
-                "minute": minute,
-                "type": ev_type,
-                "team": team,
-                "text": f"{ev_type} — {player}" if player else ev_type,
-            })
+            try:
+                if not isinstance(c, dict):
+                    continue
+                minute = self._parse_event_minute(c.get("time", ""))
+                card_type = c.get("card", "yellow card")
+                player = c.get("home_fault", "") or c.get("away_fault", "")
+                team = "HOME" if c.get("home_fault") else "AWAY"
+                ev_type = "RED" if "red" in str(card_type).lower() else "YELLOW"
+                events.append({
+                    "id": f"c{minute}{team[0]}",
+                    "minute": minute,
+                    "type": ev_type,
+                    "team": team,
+                    "text": f"{ev_type} — {player}" if player else ev_type,
+                })
+            except Exception:
+                continue
 
         # Substitutions
         for s in ev.get("substitutes", []) or []:
-            minute = self._parse_event_minute(s.get("time", ""))
-            sub_in = s.get("home_scorer", {}).get("in", "") or s.get("away_scorer", {}).get("in", "")
-            team = "HOME" if s.get("home_scorer") else "AWAY"
-            events.append({
-                "id": f"s{minute}{team[0]}",
-                "minute": minute,
-                "type": "SUB",
-                "team": team,
-                "text": f"SUB — {sub_in}" if sub_in else "SUB",
-            })
+            try:
+                if not isinstance(s, dict):
+                    continue
+                minute = self._parse_event_minute(s.get("time", ""))
+                sub_in = ""
+                for key in ("home_scorer", "away_scorer"):
+                    val = s.get(key)
+                    if isinstance(val, dict):
+                        sub_in = val.get("in", "")
+                    elif isinstance(val, str) and val:
+                        sub_in = val
+                    if sub_in:
+                        break
+                team = "HOME" if s.get("home_scorer") else "AWAY"
+                events.append({
+                    "id": f"s{minute}{team[0]}",
+                    "minute": minute,
+                    "type": "SUB",
+                    "team": team,
+                    "text": f"SUB — {sub_in}" if sub_in else "SUB",
+                })
+            except Exception:
+                continue
 
         # VAR decisions
         for v in ev.get("vars", []) or []:
-            minute = self._parse_event_minute(v.get("time", ""))
-            events.append({
-                "id": f"v{minute}",
-                "minute": minute,
-                "type": "VAR",
-                "team": "HOME" if v.get("home_team") else "AWAY",
-                "text": f"VAR — {v.get('info', 'Review')}",
-            })
+            try:
+                if not isinstance(v, dict):
+                    continue
+                minute = self._parse_event_minute(v.get("time", ""))
+                events.append({
+                    "id": f"v{minute}",
+                    "minute": minute,
+                    "type": "VAR",
+                    "team": "HOME" if v.get("home_team") else "AWAY",
+                    "text": f"VAR — {v.get('info', 'Review')}",
+                })
+            except Exception:
+                continue
 
         return sorted(events, key=lambda x: x["minute"], reverse=True)
 

@@ -1,0 +1,32 @@
+{
+  "name": "qurtabase",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:api": "npx playwright test tests/01 tests/02 tests/07",
+    "test:ui": "npx playwright test tests/04 tests/05 tests/06",
+    "test:ws": "npx playwright test tests/03",
+    "test:linked": "npx playwright test tests/08"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yeluoge26/qurtabase.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/yeluoge26/qurtabase/issues"
+  },
+  "homepage": "https://github.com/yeluoge26/qurtabase#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

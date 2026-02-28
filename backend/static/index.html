@@ -3,152 +3,353 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quant Terminal — Admin</title>
+<title>Quant Terminal — Admin Console</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #0E1117; color: #E5E5E5; font-family: 'IBM Plex Mono', monospace; padding: 20px; }
-  h1 { font-size: 14px; color: #F4C430; letter-spacing: 3px; margin-bottom: 20px; }
-  h2 { font-size: 11px; color: #6B7280; letter-spacing: 2px; margin: 20px 0 10px; }
-  .card { background: #131720; border: 1px solid #1E2530; padding: 12px; margin-bottom: 8px; border-radius: 4px; }
-  .card.active { border-color: #00C85340; }
+  body { background: #0E1117; color: #E5E5E5; font-family: 'IBM Plex Mono', monospace; padding: 20px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 14px; color: #F4C430; letter-spacing: 3px; margin-bottom: 4px; }
+  .subtitle { font-size: 9px; color: #3D4654; letter-spacing: 2px; margin-bottom: 20px; }
+  h2 { font-size: 11px; color: #6B7280; letter-spacing: 2px; margin: 24px 0 10px; display: flex; align-items: center; gap: 8px; }
+  h2 .count { font-size: 9px; background: #1E2530; padding: 1px 6px; border-radius: 8px; color: #9CA3AF; }
+  .card { background: #131720; border: 1px solid #1E2530; padding: 12px; margin-bottom: 6px; border-radius: 4px; transition: border-color 0.2s; }
+  .card:hover { border-color: #252D3A; }
+  .card.active { border-color: #00C85330; }
   .card.inactive { opacity: 0.5; }
-  .row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+  .card.live-on { border-left: 3px solid #00C853; }
+  .row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
   .label { font-size: 9px; color: #6B7280; letter-spacing: 1.5px; min-width: 80px; }
-  input, select { background: #1E2530; border: 1px solid #252D3A; color: #E5E5E5; padding: 4px 8px; font-size: 11px; font-family: mono; border-radius: 2px; }
+  input, select { background: #1E2530; border: 1px solid #252D3A; color: #E5E5E5; padding: 4px 8px; font-size: 11px; font-family: 'IBM Plex Mono', monospace; border-radius: 2px; outline: none; }
+  input:focus, select:focus { border-color: #F4C43060; }
   input { width: 200px; }
   input.short { width: 80px; }
-  button { padding: 4px 12px; font-size: 9px; font-weight: 600; letter-spacing: 1px; border: 1px solid #252D3A; border-radius: 2px; background: transparent; color: #E5E5E5; cursor: pointer; font-family: mono; }
+  select { width: 200px; }
+  button { padding: 4px 12px; font-size: 9px; font-weight: 600; letter-spacing: 1px; border: 1px solid #252D3A; border-radius: 2px; background: transparent; color: #E5E5E5; cursor: pointer; font-family: 'IBM Plex Mono', monospace; transition: all 0.15s; }
   button:hover { background: #1E2530; }
+  button:active { transform: scale(0.97); }
   button.primary { border-color: #F4C43040; color: #F4C430; }
   button.danger { border-color: #FF3D0040; color: #FF3D00; }
   button.success { border-color: #00C85340; color: #00C853; }
-  .status { font-size: 10px; color: #6B7280; margin-top: 10px; padding: 8px; background: #131720; border-radius: 4px; }
-  .badge { font-size: 8px; padding: 2px 6px; border-radius: 2px; font-weight: 700; letter-spacing: 1px; }
+  button.cyan { border-color: #00C8FF40; color: #00C8FF; }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+  .badge { font-size: 8px; padding: 2px 6px; border-radius: 2px; font-weight: 700; letter-spacing: 1px; display: inline-block; }
   .badge.on { background: #00C85320; color: #00C853; }
   .badge.off { background: #FF3D0020; color: #FF3D00; }
-  #health { margin-bottom: 20px; }
+  .badge.live { background: #FF3D0025; color: #FF3D00; animation: pulse 1.5s ease-in-out infinite; }
+  .badge.upcoming { background: #F4C43020; color: #F4C430; }
+  .badge.finished { background: #3D465420; color: #6B7280; }
+  .badge.stream { background: #00C85320; color: #00C853; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }
+  .status-bar { font-size: 10px; color: #6B7280; padding: 8px 12px; background: #131720; border-radius: 4px; margin-bottom: 6px; }
+  #toast { position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 4px; font-size: 10px; font-weight: 600; letter-spacing: 1px; display: none; z-index: 999; }
+  .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid #1E2530; }
+  .tab { padding: 8px 16px; font-size: 10px; letter-spacing: 1.5px; color: #6B7280; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab:hover { color: #9CA3AF; }
+  .tab.active { color: #F4C430; border-bottom-color: #F4C430; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .fixture-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: #131720; border: 1px solid #1E2530; margin-bottom: 4px; border-radius: 4px; font-size: 11px; }
+  .fixture-row:hover { border-color: #252D3A; }
+  .fixture-teams { flex: 1; font-weight: 600; }
+  .fixture-league { font-size: 9px; color: #6B7280; min-width: 80px; }
+  .fixture-time { font-size: 10px; color: #F4C430; min-width: 120px; }
+  .fixture-status { min-width: 60px; }
+  .kickoff-tag { font-size: 9px; color: #6B7280; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+  .empty { color: #3D4654; font-size: 10px; padding: 20px; text-align: center; }
+  .loading { color: #F4C430; font-size: 10px; padding: 20px; text-align: center; }
+  .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .health-item { text-align: center; }
+  .health-item .val { font-size: 14px; font-weight: 700; color: #E5E5E5; }
+  .health-item .lbl { font-size: 8px; color: #6B7280; letter-spacing: 1.5px; margin-top: 2px; }
 </style>
 </head>
 <body>
 
-<h1>QUANT TERMINAL — ADMIN PANEL</h1>
+<h1>QUANT TERMINAL ADMIN</h1>
+<div class="subtitle">AI FOOTBALL PREDICTION ENGINE v2.3 — CONTROL CENTER</div>
 
-<div id="health" class="card"></div>
+<!-- Health Dashboard -->
+<div id="health" class="card" style="margin-bottom:16px;">
+  <div class="health-grid" id="health-grid"></div>
+</div>
 
-<h2>MANAGED MATCHES</h2>
-<div id="matches"></div>
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('matches')">MATCHES</div>
+  <div class="tab" onclick="switchTab('fixtures')">FIXTURES</div>
+  <div class="tab" onclick="switchTab('add')">ADD MATCH</div>
+</div>
 
-<h2>ADD / UPDATE MATCH</h2>
-<div class="card">
-  <div class="row">
-    <span class="label">MATCH ID</span>
-    <input id="f_match_id" placeholder="e.g. 2915932 or demo">
+<!-- Panel: Managed Matches -->
+<div id="panel-matches" class="panel active">
+  <div id="matches"></div>
+</div>
+
+<!-- Panel: Fixtures from API -->
+<div id="panel-fixtures" class="panel">
+  <div class="card" style="margin-bottom:12px;">
+    <div class="row">
+      <span class="label">DATE FROM</span>
+      <input id="fix_from" type="date" class="short" style="width:140px;">
+      <span class="label">TO</span>
+      <input id="fix_to" type="date" class="short" style="width:140px;">
+      <span class="label">LEAGUE ID</span>
+      <input id="fix_league" class="short" placeholder="optional">
+      <button class="primary" onclick="fetchFixtures()">FETCH</button>
+      <button onclick="fetchFixtures('today')">TODAY</button>
+    </div>
   </div>
-  <div class="row">
-    <span class="label">LEAGUE</span>
-    <input id="f_league" class="short" value="EPL">
-    <span class="label">ROUND</span>
-    <input id="f_round" class="short" placeholder="R28">
-  </div>
-  <div class="row">
-    <span class="label">HOME NAME</span>
-    <input id="f_home_name" placeholder="Arsenal">
-    <span class="label">SHORT</span>
-    <input id="f_home_short" class="short" placeholder="ARS">
-  </div>
-  <div class="row">
-    <span class="label">AWAY NAME</span>
-    <input id="f_away_name" placeholder="Chelsea">
-    <span class="label">SHORT</span>
-    <input id="f_away_short" class="short" placeholder="CHE">
-  </div>
-  <div class="row">
-    <span class="label">HOME CN</span>
-    <input id="f_home_name_cn" placeholder="阿森纳">
-    <span class="label">AWAY CN</span>
-    <input id="f_away_name_cn" placeholder="切尔西">
-  </div>
-  <div class="row">
-    <span class="label">HOME ELO</span>
-    <input id="f_home_elo" class="short" type="number" value="1500">
-    <span class="label">AWAY ELO</span>
-    <input id="f_away_elo" class="short" type="number" value="1500">
-  </div>
-  <div class="row">
-    <span class="label">API-FOOTBALL ID</span>
-    <input id="f_api_football_id" placeholder="Fixture ID from API-Football">
-  </div>
-  <div class="row">
-    <span class="label">ODDS SPORT</span>
-    <input id="f_odds_sport" value="soccer_epl" placeholder="soccer_epl">
-  </div>
-  <div class="row" style="margin-top: 8px;">
-    <button class="primary" onclick="addMatch()">ADD / UPDATE MATCH</button>
+  <div id="fixtures-list"></div>
+</div>
+
+<!-- Panel: Add Match -->
+<div id="panel-add" class="panel">
+  <div class="card">
+    <div class="row">
+      <span class="label">MATCH ID</span>
+      <input id="f_match_id" placeholder="e.g. 2915932 or demo">
+    </div>
+    <div class="row">
+      <span class="label">LEAGUE</span>
+      <input id="f_league" class="short" value="EPL">
+      <span class="label">ROUND</span>
+      <input id="f_round" class="short" placeholder="R28">
+    </div>
+    <div class="row">
+      <span class="label">HOME NAME</span>
+      <input id="f_home_name" placeholder="Arsenal">
+      <span class="label">SHORT</span>
+      <input id="f_home_short" class="short" placeholder="ARS">
+    </div>
+    <div class="row">
+      <span class="label">AWAY NAME</span>
+      <input id="f_away_name" placeholder="Chelsea">
+      <span class="label">SHORT</span>
+      <input id="f_away_short" class="short" placeholder="CHE">
+    </div>
+    <div class="row">
+      <span class="label">HOME CN</span>
+      <input id="f_home_name_cn" placeholder="阿森纳">
+      <span class="label">AWAY CN</span>
+      <input id="f_away_name_cn" placeholder="切尔西">
+    </div>
+    <div class="row">
+      <span class="label">HOME ELO</span>
+      <input id="f_home_elo" class="short" type="number" value="1500">
+      <span class="label">AWAY ELO</span>
+      <input id="f_away_elo" class="short" type="number" value="1500">
+    </div>
+    <div class="row">
+      <span class="label">KICKOFF</span>
+      <input id="f_kickoff" type="datetime-local">
+    </div>
+    <div class="row">
+      <span class="label">API ID</span>
+      <input id="f_api_football_id" placeholder="AllSports/API-Football ID">
+      <span class="label">ODDS SPORT</span>
+      <input id="f_odds_sport" value="soccer_epl" class="short" style="width:140px;">
+    </div>
+    <div class="row" style="margin-top: 8px;">
+      <button class="primary" onclick="addMatch()">ADD / UPDATE MATCH</button>
+    </div>
   </div>
 </div>
 
-<div id="status" class="status" style="display:none;"></div>
+<div id="toast"></div>
 
 <script>
 const API = '/api';
+let currentTab = 'matches';
 
+// ── Tab switching ──────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelector(`.tab:nth-child(${tab === 'matches' ? 1 : tab === 'fixtures' ? 2 : 3})`).classList.add('active');
+  document.getElementById(`panel-${tab}`).classList.add('active');
+  if (tab === 'fixtures') fetchFixtures('today');
+}
+
+// ── Health dashboard ───────────────────────────────────
 async function loadHealth() {
   try {
     const r = await fetch(`${API}/health`);
     const d = await r.json();
-    document.getElementById('health').innerHTML = `
-      <div class="row">
-        <span class="label">STATUS</span>
-        <span style="color:#00C853;font-weight:700">${d.status.toUpperCase()}</span>
-        <span class="label">MODE</span>
-        <span>${d.demo_mode ? 'DEMO' : 'LIVE'}</span>
-        <span class="label">MODEL</span>
-        <span>${d.model_loaded ? 'LOADED' : 'NOT FOUND'}</span>
-        <span class="label">MATCHES</span>
-        <span>${d.active_matches}</span>
-        <span class="label">WS CONNS</span>
-        <span>${d.ws_connections}</span>
-      </div>`;
+    document.getElementById('health-grid').innerHTML = `
+      <div class="health-item">
+        <div class="val" style="color:${d.status==='ok'?'#00C853':'#FF3D00'}">${d.status.toUpperCase()}</div>
+        <div class="lbl">STATUS</div>
+      </div>
+      <div class="health-item">
+        <div class="val">${d.demo_mode ? 'DEMO' : 'LIVE'}</div>
+        <div class="lbl">MODE</div>
+      </div>
+      <div class="health-item">
+        <div class="val" style="color:${d.model_loaded?'#00C853':'#FF3D00'}">${d.model_loaded ? 'YES' : 'NO'}</div>
+        <div class="lbl">MODEL</div>
+      </div>
+      <div class="health-item">
+        <div class="val">${d.active_matches}</div>
+        <div class="lbl">MATCHES</div>
+      </div>
+      <div class="health-item">
+        <div class="val" style="color:#00C853">${d.live_matches || 0}</div>
+        <div class="lbl">STREAMING</div>
+      </div>
+      <div class="health-item">
+        <div class="val">${d.ws_connections}</div>
+        <div class="lbl">WS CONNS</div>
+      </div>
+      <div class="health-item">
+        <div class="val" style="font-size:11px">${d.live_source || 'Demo'}</div>
+        <div class="lbl">DATA SOURCE</div>
+      </div>
+      <div class="health-item">
+        <div class="val" style="color:${d.has_odds?'#00C853':'#6B7280'}">${d.has_odds ? 'YES' : 'NO'}</div>
+        <div class="lbl">ODDS API</div>
+      </div>
+    `;
   } catch(e) {
-    document.getElementById('health').innerHTML = '<span style="color:#FF3D00">Backend unreachable</span>';
+    document.getElementById('health-grid').innerHTML = '<div class="health-item"><div class="val" style="color:#FF3D00">OFFLINE</div><div class="lbl">BACKEND</div></div>';
   }
 }
 
+// ── Managed Matches ────────────────────────────────────
 async function loadMatches() {
   try {
     const r = await fetch(`${API}/admin/matches`);
     const matches = await r.json();
     const el = document.getElementById('matches');
     if (!matches.length) {
-      el.innerHTML = '<div style="color:#3D4654;font-size:10px;">No matches configured</div>';
+      el.innerHTML = '<div class="empty">No matches configured. Use FIXTURES tab to import or ADD MATCH tab.</div>';
       return;
     }
-    el.innerHTML = matches.map(m => `
-      <div class="card ${m.active ? 'active' : 'inactive'}">
+    el.innerHTML = matches.map(m => {
+      const isLive = m.live_enabled;
+      const statusBadge = m.status === 'live'
+        ? '<span class="badge live">LIVE</span>'
+        : m.status === 'finished'
+        ? '<span class="badge finished">FIN</span>'
+        : '<span class="badge upcoming">PRE</span>';
+      const kickoffStr = m.kickoff ? formatKickoff(m.kickoff) : '';
+
+      return `
+      <div class="card ${m.active ? 'active' : 'inactive'} ${isLive ? 'live-on' : ''}">
         <div class="row">
           <span class="badge ${m.active ? 'on' : 'off'}">${m.active ? 'ACTIVE' : 'OFF'}</span>
-          <span style="font-weight:700;font-size:12px;">${m.home_short || '?'} vs ${m.away_short || '?'}</span>
-          <span style="color:#6B7280;font-size:10px;">${m.league} ${m.round}</span>
+          ${isLive ? '<span class="badge stream">STREAMING</span>' : ''}
+          ${statusBadge}
+          <span style="font-weight:700;font-size:13px;">${m.home_short || m.home_name?.slice(0,3).toUpperCase() || '?'} vs ${m.away_short || m.away_name?.slice(0,3).toUpperCase() || '?'}</span>
+          <span style="color:#6B7280;font-size:10px;">${m.league || ''} ${m.round || ''}</span>
           <span style="color:#3D4654;font-size:9px;">ID: ${m.match_id}</span>
         </div>
+        <div class="row" style="font-size:10px;color:#9CA3AF;">
+          ${m.home_name || ''} vs ${m.away_name || ''}
+          ${m.home_name_cn ? ` <span style="color:#6B7280">(${m.home_name_cn} vs ${m.away_name_cn})</span>` : ''}
+        </div>
         <div class="row" style="font-size:9px;color:#6B7280;">
-          ${m.home_name} vs ${m.away_name}
-          ${m.home_name_cn ? ` (${m.home_name_cn} vs ${m.away_name_cn})` : ''}
-          | Elo: ${m.home_elo}-${m.away_elo}
+          Elo: ${m.home_elo || 1500}-${m.away_elo || 1500}
           ${m.api_football_id ? ` | API-ID: ${m.api_football_id}` : ''}
+          ${kickoffStr ? ` | Kickoff: <span style="color:#F4C430">${kickoffStr}</span>` : ''}
         </div>
         <div class="row" style="margin-top:6px;">
-          <button class="${m.active ? 'danger' : 'success'}" onclick="toggleMatch('${m.match_id}')">${m.active ? 'DEACTIVATE' : 'ACTIVATE'}</button>
+          <button class="${isLive ? 'danger' : 'success'}" onclick="toggleLive('${m.match_id}')">
+            ${isLive ? 'STOP STREAM' : 'START STREAM'}
+          </button>
+          <button class="${m.active ? 'danger' : 'success'}" onclick="toggleMatch('${m.match_id}')">
+            ${m.active ? 'DEACTIVATE' : 'ACTIVATE'}
+          </button>
           <button class="danger" onclick="deleteMatch('${m.match_id}')">DELETE</button>
-          <a href="/?match=${m.match_id}" target="_blank" style="color:#00C8FF;font-size:9px;text-decoration:none;">OPEN TERMINAL →</a>
+          <a href="/?match=${m.match_id}" target="_blank" style="color:#00C8FF;font-size:9px;text-decoration:none;padding:4px 8px;">OPEN TERMINAL &rarr;</a>
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
-    document.getElementById('matches').innerHTML = '<span style="color:#FF3D00">Failed to load</span>';
+    document.getElementById('matches').innerHTML = '<div class="empty" style="color:#FF3D00">Failed to load matches</div>';
   }
 }
 
+// ── Fixtures from API ──────────────────────────────────
+async function fetchFixtures(mode) {
+  const el = document.getElementById('fixtures-list');
+  el.innerHTML = '<div class="loading">Fetching fixtures from data sources...</div>';
+
+  let from = document.getElementById('fix_from').value;
+  let to = document.getElementById('fix_to').value;
+  const league = document.getElementById('fix_league').value;
+
+  if (mode === 'today') {
+    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0];
+    from = today;
+    to = tomorrow;
+    document.getElementById('fix_from').value = today;
+    document.getElementById('fix_to').value = tomorrow;
+  }
+
+  try {
+    let url = `${API}/admin/fixtures?`;
+    if (from) url += `date_from=${from}&`;
+    if (to) url += `date_to=${to}&`;
+    if (league) url += `league_id=${league}&`;
+
+    const r = await fetch(url);
+    const data = await r.json();
+
+    if (!data.fixtures || !data.fixtures.length) {
+      el.innerHTML = `<div class="empty">No fixtures found (${data.date_range?.from || ''} to ${data.date_range?.to || ''}). Sources: AllSports=${data.sources?.allsports ? 'ON' : 'OFF'}, OddsAPI=${data.sources?.odds_api ? 'ON' : 'OFF'}</div>`;
+      return;
+    }
+
+    // Group by date
+    const groups = {};
+    data.fixtures.forEach(f => {
+      const date = f.kickoff ? f.kickoff.split('T')[0] : 'Unknown';
+      if (!groups[date]) groups[date] = [];
+      groups[date].push(f);
+    });
+
+    let html = `<div style="font-size:9px;color:#6B7280;margin-bottom:8px;">${data.count} fixtures found</div>`;
+
+    for (const [date, fixtures] of Object.entries(groups)) {
+      html += `<h2 style="font-size:10px;margin:12px 0 6px;">${date}</h2>`;
+      fixtures.forEach(f => {
+        const time = f.kickoff ? formatKickoff(f.kickoff) : '--:--';
+        const statusClass = f.status === 'live' ? 'live' : f.status === 'finished' ? 'finished' : 'upcoming';
+        const alreadyImported = isAlreadyImported(f.match_id);
+
+        html += `
+        <div class="fixture-row">
+          <div class="fixture-status">
+            <span class="badge ${statusClass}">${f.status?.toUpperCase() || 'PRE'}</span>
+          </div>
+          <div class="fixture-time">${time}</div>
+          <div class="fixture-league">${f.league || ''}</div>
+          <div class="fixture-teams">${f.home_name || '?'} vs ${f.away_name || '?'}
+            ${f.score ? `<span style="color:#F4C430;margin-left:8px;">${f.score}</span>` : ''}
+          </div>
+          <div style="font-size:8px;color:#3D4654;">${f.source || ''}</div>
+          <button class="${alreadyImported ? '' : 'cyan'}" onclick="importFixture(${JSON.stringify(f).replace(/"/g, '&quot;')})" ${alreadyImported ? 'disabled' : ''}>
+            ${alreadyImported ? 'IMPORTED' : 'IMPORT'}
+          </button>
+        </div>`;
+      });
+    }
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div class="empty" style="color:#FF3D00">Error: ${e.message}</div>`;
+  }
+}
+
+function isAlreadyImported(matchId) {
+  // Check against managed_matches cache
+  return window._managedIds && window._managedIds.has(String(matchId));
+}
+
+// ── Actions ────────────────────────────────────────────
 async function addMatch() {
   const body = {
     match_id: document.getElementById('f_match_id').value,
@@ -164,15 +365,18 @@ async function addMatch() {
     away_elo: parseInt(document.getElementById('f_away_elo').value) || 1500,
     api_football_id: document.getElementById('f_api_football_id').value,
     odds_sport: document.getElementById('f_odds_sport').value,
+    kickoff: document.getElementById('f_kickoff').value,
     active: true,
+    live_enabled: false,
   };
-  if (!body.match_id) { showStatus('Match ID required', true); return; }
+  if (!body.match_id) { toast('Match ID required', true); return; }
   try {
     await fetch(`${API}/admin/matches`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    showStatus(`Match ${body.match_id} added/updated`);
+    toast(`Match ${body.match_id} added`);
     loadMatches();
     loadHealth();
-  } catch(e) { showStatus('Failed: ' + e, true); }
+    switchTab('matches');
+  } catch(e) { toast('Failed: ' + e, true); }
 }
 
 async function toggleMatch(id) {
@@ -181,25 +385,110 @@ async function toggleMatch(id) {
   loadHealth();
 }
 
-async function deleteMatch(id) {
-  if (!confirm(`Delete match ${id}?`)) return;
-  await fetch(`${API}/admin/matches/${id}`, { method: 'DELETE' });
+async function toggleLive(id) {
+  await fetch(`${API}/admin/matches/${id}/live`, { method: 'PUT' });
+  toast(`Stream toggled for ${id}`);
   loadMatches();
   loadHealth();
 }
 
-function showStatus(msg, error) {
-  const el = document.getElementById('status');
+async function deleteMatch(id) {
+  if (!confirm(`Delete match ${id}?`)) return;
+  await fetch(`${API}/admin/matches/${id}`, { method: 'DELETE' });
+  toast(`Match ${id} deleted`);
+  loadMatches();
+  loadHealth();
+}
+
+async function importFixture(fixture) {
+  try {
+    const body = {
+      match_id: fixture.match_id,
+      league: fixture.league || '',
+      round: fixture.round || '',
+      home_name: fixture.home_name || '',
+      away_name: fixture.away_name || '',
+      kickoff: fixture.kickoff || '',
+      status: fixture.status || 'upcoming',
+      odds_sport: fixture.odds_sport || 'soccer_epl',
+      api_football_id: fixture.match_id,
+    };
+    const r = await fetch(`${API}/admin/import-fixture`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body),
+    });
+    const data = await r.json();
+    toast(`Imported: ${fixture.home_name} vs ${fixture.away_name}`);
+    // Update cache
+    if (!window._managedIds) window._managedIds = new Set();
+    window._managedIds.add(String(fixture.match_id));
+    loadMatches();
+    loadHealth();
+    // Refresh fixtures to update button state
+    fetchFixtures();
+  } catch(e) {
+    toast('Import failed: ' + e, true);
+  }
+}
+
+// ── Utilities ──────────────────────────────────────────
+function formatKickoff(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) {
+      // Try parsing as date + time string
+      if (isoStr.includes('T')) {
+        const parts = isoStr.split('T');
+        return `${parts[0]} ${parts[1]?.slice(0,5) || ''}`;
+      }
+      return isoStr;
+    }
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return `TODAY ${time}`;
+    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+    if (d.toDateString() === tomorrow.toDateString()) return `TOMORROW ${time}`;
+    return `${d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} ${time}`;
+  } catch(e) { return isoStr; }
+}
+
+function toast(msg, error) {
+  const el = document.getElementById('toast');
   el.style.display = 'block';
+  el.style.background = error ? '#FF3D0030' : '#00C85330';
   el.style.color = error ? '#FF3D00' : '#00C853';
+  el.style.border = `1px solid ${error ? '#FF3D0040' : '#00C85340'}`;
   el.textContent = msg;
   setTimeout(() => el.style.display = 'none', 3000);
 }
 
-// Init
-loadHealth();
-loadMatches();
+// ── Init ───────────────────────────────────────────────
+async function init() {
+  // Set default dates
+  const today = new Date().toISOString().split('T')[0];
+  const future = new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0];
+  document.getElementById('fix_from').value = today;
+  document.getElementById('fix_to').value = future;
+
+  // Load managed match IDs for import button state
+  try {
+    const r = await fetch(`${API}/admin/matches`);
+    const matches = await r.json();
+    window._managedIds = new Set(matches.map(m => String(m.match_id)));
+  } catch(e) {
+    window._managedIds = new Set();
+  }
+
+  loadHealth();
+  loadMatches();
+}
+
+init();
 setInterval(loadHealth, 10000);
+setInterval(loadMatches, 15000);
 </script>
 </body>
 </html>
