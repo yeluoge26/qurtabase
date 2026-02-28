@@ -19,6 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from typing import Optional
 from config import settings
 from data.allsports_client import AllSportsClient
 from data.sportmonks_client import SportMonksClient
@@ -34,6 +35,8 @@ from services.uncertainty_engine import UncertaintyEngine
 from services.total_goals_engine import TotalGoalsEngine
 from services.goal_window_engine import GoalWindowEngine
 from services.risk_engine import RiskEngine
+from services.post_match_engine import PostMatchEngine
+from services.performance_tracker import PerformanceTracker
 from store.match_state import MatchStateStore
 
 app = FastAPI(title="Football Quant Terminal API", version="1.1.0")
@@ -58,12 +61,98 @@ uncertainty_engine = UncertaintyEngine()
 total_goals_engine = TotalGoalsEngine()
 goal_window_engine = GoalWindowEngine()
 risk_engine = RiskEngine()
+post_match_engine = PostMatchEngine()
+performance_tracker = PerformanceTracker()
 state_store = MatchStateStore()
 
 # Managed matches (admin-controlled)
 managed_matches: dict[str, dict] = {}
 
 predictor = None
+
+# ── Signal Control State (per match) ─────────────────────────
+# State machine: idle → ready → (confirmed → cooldown) → idle/ready
+signal_state: dict[str, dict] = {}
+
+SIGNAL_EDGE_THRESHOLD = 4.0    # Edge % required to move from idle → ready
+SIGNAL_LOCK_SEC = 10.0         # Seconds the "confirmed" state stays locked
+SIGNAL_COOLDOWN_SEC = 120.0    # Seconds of cooldown after lock expires
+
+
+def _get_signal_state(match_id: str) -> dict:
+    """Return the current signal state for a match, creating if needed."""
+    if match_id not in signal_state:
+        signal_state[match_id] = {
+            "state": "idle",
+            "line": 0,
+            "model_prob": 0,
+            "market_prob": 0,
+            "edge": 0.0,
+            "confirmed_at": None,
+            "cooldown_remaining": 0,
+            "rejected_at": None,
+        }
+    return signal_state[match_id]
+
+
+def _compute_signal_control(match_id: str, edge: float, line: float,
+                             model_prob: float, market_prob: float) -> dict:
+    """
+    Evaluate the signal control state machine and return the signal_control payload.
+    Called on every tick to update state transitions based on time and edge.
+    """
+    ss = _get_signal_state(match_id)
+    now = time.time()
+
+    # Always update latest market data
+    ss["line"] = line
+    ss["model_prob"] = model_prob
+    ss["market_prob"] = market_prob
+    ss["edge"] = edge
+
+    current = ss["state"]
+
+    # ── State transitions ──
+    if current == "confirmed":
+        elapsed = now - (ss["confirmed_at"] or now)
+        if elapsed >= SIGNAL_LOCK_SEC:
+            # Lock expired → enter cooldown
+            ss["state"] = "cooldown"
+            ss["cooldown_start"] = now
+            current = "cooldown"
+
+    if current == "cooldown":
+        cooldown_start = ss.get("cooldown_start", now)
+        remaining = SIGNAL_COOLDOWN_SEC - (now - cooldown_start)
+        if remaining <= 0:
+            # Cooldown expired → re-evaluate based on edge
+            ss["state"] = "ready" if abs(edge) >= SIGNAL_EDGE_THRESHOLD else "idle"
+            ss["cooldown_remaining"] = 0
+            ss["confirmed_at"] = None
+            current = ss["state"]
+        else:
+            ss["cooldown_remaining"] = int(remaining)
+
+    if current == "idle":
+        if abs(edge) >= SIGNAL_EDGE_THRESHOLD:
+            ss["state"] = "ready"
+            current = "ready"
+
+    if current == "ready":
+        if abs(edge) < SIGNAL_EDGE_THRESHOLD:
+            ss["state"] = "idle"
+            current = "idle"
+
+    # Build payload
+    return {
+        "state": ss["state"],
+        "line": round(ss["line"], 2),
+        "model_prob": round(ss["model_prob"], 1),
+        "market_prob": round(ss["market_prob"], 1),
+        "edge": round(ss["edge"], 1),
+        "confirmed_at": ss["confirmed_at"],
+        "cooldown_remaining": ss.get("cooldown_remaining", 0),
+    }
 
 
 def get_predictor():
@@ -150,6 +239,65 @@ async def get_live_matches():
     return [{"match_id": "demo", "league": "EPL", "home_name": "Arsenal",
              "away_name": "Chelsea", "home_short": "ARS", "away_short": "CHE",
              "active": True}]
+
+
+# ══════════════════════════════════════════════════════════════
+# SIGNAL CONTROL — REST API
+# ══════════════════════════════════════════════════════════════
+
+class SignalAction(BaseModel):
+    match_id: str = "demo"
+    action: str  # "confirm" | "reject"
+
+
+@app.post("/api/signal/confirm")
+async def signal_confirm(body: SignalAction):
+    """Confirm or reject the current signal."""
+    ss = _get_signal_state(body.match_id)
+    if body.action == "confirm":
+        if ss["state"] != "ready":
+            raise HTTPException(400, f"Cannot confirm signal in state '{ss['state']}'. Must be 'ready'.")
+        ss["state"] = "confirmed"
+        ss["confirmed_at"] = time.time()
+        ss["cooldown_remaining"] = 0
+    elif body.action == "reject":
+        if ss["state"] not in ("ready", "pending"):
+            raise HTTPException(400, f"Cannot reject signal in state '{ss['state']}'.")
+        ss["state"] = "idle"
+        ss["rejected_at"] = time.time()
+        ss["confirmed_at"] = None
+    else:
+        raise HTTPException(400, f"Invalid action '{body.action}'. Must be 'confirm' or 'reject'.")
+
+    return {"status": "ok", "signal_state": ss}
+
+
+@app.get("/api/signal/state")
+async def signal_get_state(match_id: str = "demo"):
+    """Return current signal state for a match."""
+    ss = _get_signal_state(match_id)
+    return {
+        "status": "ok",
+        "signal_state": {
+            "state": ss["state"],
+            "line": ss["line"],
+            "model_prob": ss["model_prob"],
+            "market_prob": ss["market_prob"],
+            "edge": ss["edge"],
+            "confirmed_at": ss["confirmed_at"],
+            "cooldown_remaining": ss.get("cooldown_remaining", 0),
+        },
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# PERFORMANCE TRACKER — REST API
+# ══════════════════════════════════════════════════════════════
+
+@app.get("/api/performance")
+async def get_performance():
+    """Return session performance summary."""
+    return performance_tracker.get_summary()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -356,6 +504,27 @@ class DemoSimulator:
             tempo_c=total_goals.get("tempo_raw"),
         )
 
+        # ── Signal Control ──
+        sc = _compute_signal_control(
+            "demo",
+            edge=total_goals.get("edge", 0),
+            line=total_goals.get("line", 2.5),
+            model_prob=total_goals.get("model_prob_over", 0),
+            market_prob=total_goals.get("market_prob_over", 0),
+        )
+
+        # ── Post-Match Engine ──
+        post_match_engine.update(
+            lambda_live=total_goals.get("lambda_live", 0),
+            edge=total_goals.get("edge", 0),
+            lambda_pre=total_goals.get("lambda_pre", 0),
+        )
+
+        if self.minute >= 90:
+            post_match = post_match_engine.generate_summary(self.score, self.minute)
+        else:
+            post_match = {"active": False}
+
         # ═══ v1.1 Full Payload ═══
         return {
             "meta": {
@@ -392,6 +561,9 @@ class DemoSimulator:
             "goal_window": goal_window,
             "line_movement": line_movement,
             "risk": risk,
+            "signal_control": sc,
+            "performance": performance_tracker.get_summary(),
+            "post_match": post_match,
         }
 
 
@@ -577,6 +749,20 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         tempo_c=total_goals.get("tempo_raw"),
                     )
 
+                    # Post-Match Engine (live mode)
+                    post_match_engine.update(
+                        lambda_live=total_goals.get("lambda_live", 0),
+                        edge=total_goals.get("edge", 0),
+                        lambda_pre=total_goals.get("lambda_pre", 0),
+                    )
+
+                    if minute >= 90:
+                        post_match = post_match_engine.generate_summary(
+                            [live_state["home_goals"], live_state["away_goals"]], minute
+                        )
+                    else:
+                        post_match = {"active": False}
+
                     payload = {
                         "meta": {
                             "match_id": match_id,
@@ -605,6 +791,15 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "goal_window": goal_window,
                         "line_movement": line_movement,
                         "risk": risk,
+                        "signal_control": _compute_signal_control(
+                            match_id,
+                            edge=total_goals.get("edge", 0),
+                            line=total_goals.get("line", 2.5),
+                            model_prob=total_goals.get("model_prob_over", 0),
+                            market_prob=total_goals.get("market_prob_over", 0),
+                        ),
+                        "performance": performance_tracker.get_summary(),
+                        "post_match": post_match,
                     }
 
                     await ws.send_json(payload)
@@ -633,6 +828,9 @@ async def startup():
         "api_football_id": "", "odds_sport": "soccer_epl",
         "active": True,
     }
+    # Seed demo performance data
+    performance_tracker.seed_demo_data()
+
     print("=" * 50)
     print("  AI Football Quant Terminal v1.1 — Backend")
     print(f"  Mode: {'DEMO' if settings.demo_mode else 'LIVE'}")

@@ -1,7 +1,7 @@
 # AI 足球量化终端 — 功能清单
 
-> 最后更新: 2026-02-27
-> 当前版本: v1.2.0
+> 最后更新: 2026-02-28
+> 当前版本: v2.1.0
 > 状态说明: [x] 已完成 | [ ] 待开发 | [~] 进行中/部分完成
 
 ---
@@ -119,54 +119,54 @@
 
 ---
 
-## 阶段 2：v2.0 直播吸粉功能 — P0 必做
+## 阶段 2：v2.0 直播吸粉功能 — 已完成 *(v2.0)*
 
 ### O/U 多盘口扫描器
-- [ ] 扫描多条盘口线：2.0 / 2.25 / 2.5 / 2.75
-- [ ] 每条线显示 Edge 值 + Active 标记
-- [ ] 前端 `OUScanner.jsx` 组件
-- [ ] 后端：为每条线计算泊松 O/U 概率
+- [x] 扫描多条盘口线：1.5/2.0/2.25/2.5/2.75/3.0/3.5 *(v2.0)*
+- [x] 每条线显示 Edge 值 + Active 标记 *(v2.0)*
+- [x] 前端 `OUScanner.jsx` 组件 *(v2.0)*
+- [x] 后端：`scan_lines()` 为每条线计算泊松 O/U 概率 *(v2.0)*
 
 ### 高进球窗口系统
-- [ ] 高进球窗口检测（节奏 + xG 速度阈值）
-- [ ] 倒计时横幅："HIGH GOAL WINDOW — 预计 5-10 分钟"
-- [ ] 窗口活跃计时器
-- [ ] 信心百分比
-- [ ] 前端 `GoalWindow.jsx` 组件
+- [x] 高进球窗口检测（tempo_c≥1.15, λ_rate>0.029）*(v2.0)*
+- [x] 倒计时横幅含预计持续时间 *(v2.0)*
+- [x] 窗口活跃计时器 *(v2.0)*
+- [x] 信心百分比 *(v2.0)*
+- [x] 前端 `GoalWindow.jsx` + 后端 `goal_window_engine.py` *(v2.0)*
 
 ### 信号冷却显示
-- [ ] 可见冷却倒计时器（180秒/120秒）
-- [ ] "NEXT EVAL IN xx:xx" 显示
-- [ ] 信号状态进程：BUILDING → READY → CONFIRMED → COOLDOWN
-- [ ] Edge 构建动画（"EDGE BUILDING..."）
+- [x] 可见冷却倒计时器（180秒/120秒）*(v2.0)*
+- [x] "NEXT EVAL IN xx:xx" 显示 *(v2.0)*
+- [x] 信号状态进程：MONITORING → BUILDING → READY → COOLDOWN *(v2.0)*
+- [x] Edge 构建动画（"EDGE BUILDING..."）*(v2.0)*
 
 ### Edge 热度条
-- [ ] Edge 值的可视化进度条（不仅是数字）
-- [ ] 渐变颜色：中性 → 金色 → 亮金
-- [ ] 阈值标记
+- [x] Edge 值的可视化进度条 *(v2.0)*
+- [x] 渐变颜色：中性 → 金色 → 亮金 *(v2.0)*
+- [x] 4%/6% 阈值标记 *(v2.0)*
 
 ### 模型周期计时器
-- [ ] "NEXT MODEL UPDATE 00:xx" 倒计时
-- [ ] 当前状态：Monitoring / Evaluating / Recalculating
-- [ ] 波动率等级指示器
-- [ ] 进球后重算动画（"MODEL RESET — Recalculating λ..."）
+- [x] "NEXT MODEL UPDATE 00:xx" 倒计时 *(v2.0)*
+- [x] 当前状态：Monitoring / Evaluating / Recalculating *(v2.0)*
+- [x] 波动率等级指示器 *(v2.0)*
+- [x] 进球后重算动画（"MODEL RESET — Recalculating λ..."）*(v2.0)*
 
 ---
 
-## 阶段 3：v2.0 市场与风险透明 — P1
+## 阶段 3：v2.0 市场与风险透明 — 已完成 *(v2.0)*
 
 ### 盘口移动监控
-- [ ] 赔率变动监控（如 2.5 → 2.25）
-- [ ] 大小球赔率变化追踪
-- [ ] 市场压力指示器（OVER/UNDER 方向箭头）
-- [ ] 前端 `LineMovement.jsx` 组件
+- [x] 赔率变动监控（线路变化追踪）*(v2.0)*
+- [x] 大小球赔率变化追踪 *(v2.0)*
+- [x] 市场压力指示器（OVER/UNDER/NEUTRAL 方向）*(v2.0)*
+- [x] 前端 `LineMovement.jsx` 组件 *(v2.0)*
 
 ### 风险面板
-- [ ] 模型方差展示
-- [ ] 信号稳定性百分比
-- [ ] 市场波动率等级（低/中/高）
-- [ ] 最大回撤守卫状态
-- [ ] 前端 `RiskPanel.jsx` 组件
+- [x] 模型方差展示 *(v2.0)*
+- [x] 信号稳定性百分比（10 样本滚动）*(v2.0)*
+- [x] 市场波动率等级（低/中/高）*(v2.0)*
+- [x] 最大回撤守卫状态 *(v2.0)*
+- [x] 前端 `RiskPanel.jsx` + 后端 `risk_engine.py` *(v2.0)*
 
 ### 赛前 vs 实时对比
 - [ ] PRE TOTAL λ vs LIVE TOTAL λ 含百分比变化
@@ -174,37 +174,38 @@
 - [ ] 集成到 TotalGoalsPanel 顶部
 
 ### 市场压力指数
-- [ ] PUBLIC BIAS / MARKET PRESSURE 指示器
-- [ ] 方向：OVER / UNDER / NEUTRAL
-- [ ] 从赔率移动方向推导
+- [x] 市场压力指示器集成到 LineMovement *(v2.0)*
+- [x] 方向：OVER / UNDER / NEUTRAL *(v2.0)*
+- [x] 从赔率移动方向推导 *(v2.0)*
 
 ---
 
-## 阶段 4：v2.0 信号控制与战绩 — P2
+## 阶段 4：v2.0 信号控制与战绩 — 已完成 *(v2.1)*
 
 ### 信号控制面板（半自动模式）
-- [ ] SIGNAL READY 展示含盘口/模型/市场/边际
-- [ ] [CONFIRM] / [REJECT] 按钮（支持键盘快捷键）
-- [ ] 信号状态机：ready → pending → confirmed → cooldown
-- [ ] 确认后信号锁定
+- [x] SIGNAL READY 展示含盘口/模型/市场/边际 *(v2.1)*
+- [x] [CONFIRM] / [REJECT] 按钮（Enter/Escape 键盘快捷键）*(v2.1)*
+- [x] 信号状态机：idle → ready → confirmed → cooldown *(v2.1)*
+- [x] 确认后信号锁定（120秒冷却）*(v2.1)*
 - [ ] 确认时触发 AI 播报
-- [ ] 前端 `SignalControlPanel.jsx` 组件
-- [ ] 后端信号状态接口
+- [x] 前端 `SignalControlPanel.jsx` 组件 *(v2.1)*
+- [x] 后端 `POST /api/signal/confirm` + `GET /api/signal/state` *(v2.1)*
 
 ### 战绩追踪面板
-- [ ] 今日信号数、命中数、失误数
-- [ ] ROI 百分比展示
-- [ ] 历史预测数据库（match_id、预测值、实际结果）
-- [ ] 角落固定展示（始终可见）
-- [ ] 前端 `TrackRecord.jsx` 组件
-- [ ] 后端 `/api/performance` 接口
+- [x] 今日信号数、命中数、失误数 *(v2.1)*
+- [x] ROI 百分比展示 *(v2.1)*
+- [x] 信号日志含结果标记（✓/✗/●）*(v2.1)*
+- [x] 角落固定展示（始终可见）*(v2.1)*
+- [x] 前端 `TrackRecord.jsx` 组件 *(v2.1)*
+- [x] 后端 `performance_tracker.py` + `GET /api/performance` *(v2.1)*
 
 ### 赛后总结
-- [ ] 比赛结束自动生成总结
-- [ ] 字段：Pre λ、最终进球、Peak λ、最佳 Edge、信号准确度
-- [ ] POST-MATCH 场景触发
+- [x] 比赛结束自动生成总结（minute≥90）*(v2.1)*
+- [x] 字段：Pre λ、最终进球、Peak λ、最佳 Edge、λ 准确度 *(v2.1)*
+- [x] POST-MATCH 场景触发 *(v2.1)*
 - [ ] 导出功能（JSON / 图片快照）
-- [ ] 前端 `PostMatchSummary.jsx` 组件
+- [x] 前端 `PostMatchSummary.jsx` 组件 *(v2.1)*
+- [x] 后端 `post_match_engine.py` *(v2.1)*
 
 ---
 
@@ -282,9 +283,10 @@
 ## 阶段 7：高级功能 — P5（第3月以后）
 
 ### 关键事件警报系统
-- [ ] 进球：状态栏闪黄 2 秒
-- [ ] 红牌：状态栏闪红
-- [ ] 概率剧变 > 15%：全屏 ALERT 横幅
+- [x] 进球：全屏金色闪烁 2.5 秒 *(v2.1)*
+- [x] 红牌：全屏红色闪烁 2 秒 *(v2.1)*
+- [x] 概率剧变 > 15%：全屏青色闪烁 3 秒 *(v2.1)*
+- [x] `EventAlert.jsx` + `useEventAlert.js` 含顺序队列 *(v2.1)*
 - [ ] OBS WebSocket 通知触发音效
 
 ### 蒙特卡洛比分矩阵

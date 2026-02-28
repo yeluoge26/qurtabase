@@ -121,6 +121,15 @@ export function mapPayload(raw) {
 
     // Line Movement
     lineMovement: mapLineMovement(raw.line_movement),
+
+    // Post-Match Summary
+    postMatch: mapPostMatch(raw.post_match),
+
+    // Signal Control (semi-automatic confirmation)
+    signalControl: mapSignalControl(raw.signal_control),
+
+    // Performance / Track Record
+    performance: mapPerformance(raw.performance),
   };
 }
 
@@ -195,5 +204,56 @@ function mapLineMovement(lm) {
     under_odds: lm.under_odds ?? 1.90,
     direction: lm.direction || "NEUTRAL",
     pressure: lm.pressure || "NEUTRAL",
+  };
+}
+
+function mapSignalControl(sc) {
+  if (!sc) return null;
+  return {
+    state: sc.state || "idle",
+    line: sc.line ?? 0,
+    model_prob: sc.model_prob ?? 0,
+    market_prob: sc.market_prob ?? 0,
+    edge: sc.edge ?? 0,
+    confirmed_at: sc.confirmed_at ?? null,
+    cooldown_remaining: sc.cooldown_remaining ?? 0,
+  };
+}
+
+function mapPostMatch(pm) {
+  if (!pm) return null;
+  return {
+    active: pm.active ?? false,
+    pre_lambda: pm.pre_lambda ?? 0,
+    final_goals: pm.final_goals ?? 0,
+    final_score: pm.final_score || "0-0",
+    peak_lambda: pm.peak_lambda ?? 0,
+    best_edge: pm.best_edge ?? 0,
+    avg_lambda: pm.avg_lambda ?? 0,
+    lambda_accuracy: pm.lambda_accuracy || "MISS",
+    total_updates: pm.total_updates ?? 0,
+  };
+}
+
+function mapPerformance(perf) {
+  if (!perf) return null;
+  return {
+    total_signals: perf.total_signals ?? 0,
+    wins: perf.wins ?? 0,
+    losses: perf.losses ?? 0,
+    pending: perf.pending ?? 0,
+    roi_pct: perf.roi_pct ?? 0,
+    best_edge: perf.best_edge ?? 0,
+    avg_edge: perf.avg_edge ?? 0,
+    signals: (perf.signals || []).map(s => ({
+      id: s.id,
+      minute: s.minute ?? 0,
+      type: s.type || "OVER",
+      line: s.line ?? 2.5,
+      edge: s.edge ?? 0,
+      model_prob: s.model_prob ?? 0,
+      result: s.result || "pending",
+      timestamp: s.timestamp ?? 0,
+    })),
   };
 }

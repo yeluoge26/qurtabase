@@ -1,7 +1,7 @@
 # AI Football Quant Terminal — TODO Checklist
 
-> Last updated: 2026-02-27
-> Current version: v1.2.0
+> Last updated: 2026-02-28
+> Current version: v2.1.0
 > Status key: [x] Done | [ ] Todo | [~] Partial/In Progress
 
 ---
@@ -119,54 +119,54 @@
 
 ---
 
-## Phase 2: v2.0 Streaming Fan Engagement — P0 Must Have
+## Phase 2: v2.0 Streaming Fan Engagement — COMPLETE *(v2.0)*
 
 ### O/U Scanner (Multi-Line)
-- [ ] Scan multiple lines: 2.0 / 2.25 / 2.5 / 2.75
-- [ ] Per-line Edge display with Active marker
-- [ ] Frontend `OUScanner.jsx` component
-- [ ] Backend: compute Poisson O/U for each line
+- [x] Scan multiple lines: 1.5/2.0/2.25/2.5/2.75/3.0/3.5 *(v2.0)*
+- [x] Per-line Edge display with Active marker *(v2.0)*
+- [x] Frontend `OUScanner.jsx` component *(v2.0)*
+- [x] Backend: `scan_lines()` Poisson O/U for each line *(v2.0)*
 
 ### Goal Window System
-- [ ] High goal window detection (Tempo + xG velocity threshold)
-- [ ] Countdown banner: "HIGH GOAL WINDOW — Estimated 5-10 min"
-- [ ] Window Active timer display
-- [ ] Confidence percentage
-- [ ] Frontend `GoalWindow.jsx` component
+- [x] High goal window detection (tempo_c≥1.15, λ_rate>0.029) *(v2.0)*
+- [x] Countdown banner with estimated duration *(v2.0)*
+- [x] Window Active timer display *(v2.0)*
+- [x] Confidence percentage *(v2.0)*
+- [x] Frontend `GoalWindow.jsx` + Backend `goal_window_engine.py` *(v2.0)*
 
 ### Signal Cooldown Display
-- [ ] Visible cooldown countdown timer (180s/120s)
-- [ ] "NEXT EVAL IN xx:xx" display
-- [ ] Signal state progression: BUILDING → READY → CONFIRMED → COOLDOWN
-- [ ] Edge building animation ("EDGE BUILDING...")
+- [x] Visible cooldown countdown timer (180s/120s) *(v2.0)*
+- [x] "NEXT EVAL IN xx:xx" display *(v2.0)*
+- [x] Signal state progression: MONITORING → BUILDING → READY → COOLDOWN *(v2.0)*
+- [x] Edge building animation ("EDGE BUILDING...") *(v2.0)*
 
 ### Edge Heat Bar
-- [ ] Visual progress bar for Edge value (not just number)
-- [ ] Color gradient: neutral → gold → bright gold
-- [ ] Threshold markers on bar
+- [x] Visual progress bar for Edge value *(v2.0)*
+- [x] Color gradient: neutral → gold → bright gold *(v2.0)*
+- [x] Threshold markers at 4%/6% *(v2.0)*
 
 ### Model Cycle Timer
-- [ ] "NEXT MODEL UPDATE 00:xx" countdown
-- [ ] Current State display: Monitoring / Evaluating / Recalculating
-- [ ] Volatility level indicator
-- [ ] Goal recalculation animation ("MODEL RESET — Recalculating λ...")
+- [x] "NEXT MODEL UPDATE 00:xx" countdown *(v2.0)*
+- [x] Current State display: Monitoring / Evaluating / Recalculating *(v2.0)*
+- [x] Volatility level indicator *(v2.0)*
+- [x] Goal recalculation animation ("MODEL RESET — Recalculating λ...") *(v2.0)*
 
 ---
 
-## Phase 3: v2.0 Market & Risk Transparency — P1
+## Phase 3: v2.0 Market & Risk Transparency — COMPLETE *(v2.0)*
 
 ### Market Line Movement
-- [ ] Odds flow monitoring (e.g. 2.5 → 2.25)
-- [ ] Over/Under odds change tracking
-- [ ] Market pressure indicator (OVER/UNDER direction arrows)
-- [ ] Frontend `LineMovement.jsx` component
+- [x] Odds flow monitoring (line change tracking) *(v2.0)*
+- [x] Over/Under odds change tracking *(v2.0)*
+- [x] Market pressure indicator (OVER/UNDER/NEUTRAL direction) *(v2.0)*
+- [x] Frontend `LineMovement.jsx` component *(v2.0)*
 
 ### Risk Panel
-- [ ] Model Variance display
-- [ ] Signal Stability percentage
-- [ ] Market Volatility level (Low/Medium/High)
-- [ ] Max Drawdown Guard status
-- [ ] Frontend `RiskPanel.jsx` component
+- [x] Model Variance display *(v2.0)*
+- [x] Signal Stability percentage (10-sample rolling) *(v2.0)*
+- [x] Market Volatility level (Low/Medium/High) *(v2.0)*
+- [x] Max Drawdown Guard status *(v2.0)*
+- [x] Frontend `RiskPanel.jsx` + Backend `risk_engine.py` *(v2.0)*
 
 ### Pre vs Live Comparison
 - [ ] PRE TOTAL λ vs LIVE TOTAL λ with percentage delta
@@ -174,37 +174,38 @@
 - [ ] Integrated into TotalGoalsPanel header
 
 ### Market Pressure Index
-- [ ] PUBLIC BIAS / MARKET PRESSURE indicator
-- [ ] Direction: OVER / UNDER / NEUTRAL
-- [ ] Derived from odds movement direction
+- [x] Market pressure indicator in LineMovement *(v2.0)*
+- [x] Direction: OVER / UNDER / NEUTRAL *(v2.0)*
+- [x] Derived from odds movement direction *(v2.0)*
 
 ---
 
-## Phase 4: v2.0 Signal Control & Track Record — P2
+## Phase 4: v2.0 Signal Control & Track Record — COMPLETE *(v2.1)*
 
 ### Signal Control Panel (Semi-Automatic)
-- [ ] SIGNAL READY display with line/model/market/edge
-- [ ] [CONFIRM] / [REJECT] buttons (keyboard shortcut support)
-- [ ] Signal state machine: ready → pending → confirmed → cooldown
-- [ ] Signal lock after confirmation
+- [x] SIGNAL READY display with line/model/market/edge *(v2.1)*
+- [x] [CONFIRM] / [REJECT] buttons (Enter/Escape keyboard shortcuts) *(v2.1)*
+- [x] Signal state machine: idle → ready → confirmed → cooldown *(v2.1)*
+- [x] Signal lock after confirmation (120s cooldown) *(v2.1)*
 - [ ] Trigger AI broadcast on confirm
-- [ ] Frontend `SignalControlPanel.jsx` component
-- [ ] Backend signal state endpoint
+- [x] Frontend `SignalControlPanel.jsx` component *(v2.1)*
+- [x] Backend `POST /api/signal/confirm` + `GET /api/signal/state` *(v2.1)*
 
 ### Track Record / Performance Panel
-- [ ] Today's signals count, wins, losses
-- [ ] ROI percentage display
-- [ ] Historical prediction database (match_id, predicted, actual)
-- [ ] Corner display (always visible)
-- [ ] Frontend `TrackRecord.jsx` component
-- [ ] Backend `/api/performance` endpoint
+- [x] Today's signals count, wins, losses *(v2.1)*
+- [x] ROI percentage display *(v2.1)*
+- [x] Signal log with result markers (✓/✗/●) *(v2.1)*
+- [x] Corner display (always visible) *(v2.1)*
+- [x] Frontend `TrackRecord.jsx` component *(v2.1)*
+- [x] Backend `performance_tracker.py` + `GET /api/performance` *(v2.1)*
 
 ### Post-Match Summary
-- [ ] Auto-generated summary on match end
-- [ ] Fields: Pre λ, Final Goals, Peak λ, Best Edge, Signal Accuracy
-- [ ] POST-MATCH scene trigger
+- [x] Auto-generated summary on match end (minute≥90) *(v2.1)*
+- [x] Fields: Pre λ, Final Goals, Peak λ, Best Edge, λ Accuracy *(v2.1)*
+- [x] POST-MATCH scene trigger *(v2.1)*
 - [ ] Export capability (JSON / image snapshot)
-- [ ] Frontend `PostMatchSummary.jsx` component
+- [x] Frontend `PostMatchSummary.jsx` component *(v2.1)*
+- [x] Backend `post_match_engine.py` *(v2.1)*
 
 ---
 
@@ -282,9 +283,10 @@
 ## Phase 7: Advanced Features — P5 (Month 3+)
 
 ### Event Alert System
-- [ ] Goal: State Bar flash yellow 2s
-- [ ] Red card: State Bar flash red
-- [ ] Probability swing > 15%: Full-screen ALERT banner
+- [x] Goal: Full-viewport gold flash 2.5s *(v2.1)*
+- [x] Red card: Full-viewport red flash 2s *(v2.1)*
+- [x] Probability swing > 15%: Full-viewport cyan flash 3s *(v2.1)*
+- [x] `EventAlert.jsx` + `useEventAlert.js` hook with sequential queue *(v2.1)*
 - [ ] OBS WebSocket notification for sound triggers
 
 ### Monte Carlo Score Matrix

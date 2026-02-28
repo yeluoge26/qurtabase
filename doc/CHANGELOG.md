@@ -5,6 +5,26 @@
 
 ---
 
+## [v2.1.0] — 2026-02-28
+
+### Added — Signal Control & Track Record (P2)
+- **`SignalControlPanel.jsx`**: Semi-automatic signal confirmation with CONFIRM/REJECT buttons, Enter/Escape keyboard shortcuts
+- **Backend signal state machine**: idle → ready (edge≥4%) → confirmed (user CONFIRM) → cooldown (120s) → idle
+- **`POST /api/signal/confirm`** + **`GET /api/signal/state`**: REST endpoints for signal control
+- **`TrackRecord.jsx`** + **`performance_tracker.py`**: Today's signals/wins/losses/ROI, signal log with result markers (✓/✗/●)
+- **`GET /api/performance`**: Performance summary endpoint with demo seed data
+- **`PostMatchSummary.jsx`** + **`post_match_engine.py`**: Auto-generated post-match summary (Pre λ, Peak λ, Best Edge, λ Accuracy HIT/MISS)
+- **`EventAlert.jsx`** + **`useEventAlert.js`**: Full-viewport flash alerts for goals (gold 2.5s), red cards (red 2s), prob swings >15% (cyan 3s)
+- Sequential alert queue with event ID dedup, pointer-events: none overlay
+
+### Changed
+- `QuantTerminal.jsx`: Integrated 4 new T1 components (SignalControlPanel, TrackRecord, PostMatchSummary, EventAlert)
+- `main.py`: Added signal state machine, PostMatchEngine, PerformanceTracker, 3 new REST endpoints
+- `mapPayload.js`: Added signalControl, postMatch, performance mappers
+- `i18n.js`: Added 14 new translation keys (EN/ZH) for signal/track/post-match/alert
+
+---
+
 ## [v2.0.0] — 2026-02-27
 
 ### Added — Streaming Fan Engagement (P0)
@@ -172,45 +192,3 @@
 - `Dockerfile.frontend` (Node 20-alpine + nginx)
 - Nginx reverse proxy (/, /api/, /ws/)
 
----
-
-## [v2.0.0-plan] — Planned Features (from projectimprovev2.md)
-
-### Priority 1 — Streaming Fan Engagement (Week 1-2)
-- O/U Scanner: Multi-line scanning (2.0/2.25/2.5/2.75 with Edge)
-- Goal Window countdown banner with estimated duration
-- Signal Cooldown countdown (180s/120s visible timer)
-- Edge Heat bar (visual bar instead of number only)
-- Model Cycle / Next Evaluation countdown timer
-
-### Priority 2 — Market & Risk Transparency (Week 2-3)
-- Market Line Movement monitoring (odds flow, direction arrows)
-- Risk Panel (Model Variance, Signal Stability, Market Volatility)
-- Pre vs Live comparison (λ/Tempo delta percentage)
-- Market Pressure indicator (OVER/UNDER direction)
-
-### Priority 3 — Signal Control System (Week 3-4)
-- Signal Control Panel (CONFIRM/REJECT for semi-automatic mode)
-- Signal state machine: READY → PENDING → CONFIRMED → COOLDOWN
-- Track Record / Performance panel (today's signals, wins, ROI)
-- Post-Match Summary auto-generation
-
-### Priority 4 — AI Voice Commentary (Month 2)
-- Semi-automatic TTS (Edge TTS / OpenAI TTS / ElevenLabs)
-- 10-stage broadcast rhythm script templates
-- Trigger rules: λ change >8%, Edge >4%, Tempo >70, Goal, Red card
-- Cooldown: 90s between non-critical broadcasts
-- UI highlight sync when AI speaks
-
-### Priority 5 — OBS Scene Integration (Month 2)
-- 4 scenes: PRE-MATCH, LIVE TRADING, SIGNAL FOCUS, POST-MATCH
-- Layer structure: Background → Terminal → Signal Overlay → AI Status → Performance → Disclaimer
-- Hotkey mapping (F1-F4)
-- Browser Source 1920x1080, 30fps, 6000kbps
-
-### Priority 6 — Advanced Features (Month 3+)
-- Multi-match grid terminal (3-4 matches)
-- Chat voting system (YouTube/TikTok)
-- Monte Carlo score matrix with heat map
-- Sound design (Bloomberg-style audio cues)
-- Membership tier gating (Free/Pro/Elite)

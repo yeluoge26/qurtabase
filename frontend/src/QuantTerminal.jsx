@@ -14,6 +14,10 @@ import LineMovement from "./components/LineMovement";
 import SignalCooldownBar from "./components/SignalCooldownBar";
 import EdgeHeatBar from "./components/EdgeHeatBar";
 import ModelCycleTimer from "./components/ModelCycleTimer";
+import EventAlert from "./components/EventAlert";
+import TrackRecord from "./components/TrackRecord";
+import SignalControlPanel from "./components/SignalControlPanel";
+import PostMatchSummary from "./components/PostMatchSummary";
 
 /*
  * ═══════════════════════════════════════════════════════════════════
@@ -173,6 +177,22 @@ export default function QuantTerminal({ matchId = "demo" }) {
   const an = lang === "zh" && d.away.nameCn ? d.away.nameCn : d.away.name;
   const healthColor = health === "OK" ? C.up : health === "DEGRADED" ? C.accent : C.down;
 
+  // Signal Control callbacks
+  const handleSignalConfirm = () => {
+    fetch("/api/signal/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ match_id: matchId, action: "confirm" }),
+    }).catch(() => {});
+  };
+  const handleSignalReject = () => {
+    fetch("/api/signal/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ match_id: matchId, action: "reject" }),
+    }).catch(() => {});
+  };
+
   return (
     <div style={sty.root}>
       <style>{globalCSS}</style>
@@ -229,6 +249,9 @@ export default function QuantTerminal({ matchId = "demo" }) {
 
       {/* ═══ GOAL WINDOW BANNER ═══ */}
       <GoalWindow data={d.goalWindow} />
+
+      {/* ═══ POST-MATCH SUMMARY ═══ */}
+      <PostMatchSummary data={d.postMatch} t={t} />
 
       {/* ═══ MAIN GRID ═══ */}
       <div style={sty.mainGrid}>
@@ -292,6 +315,17 @@ export default function QuantTerminal({ matchId = "demo" }) {
                 }
                 cooldownSec={d.totalGoals.cooldown_remaining_sec || 0}
                 cooldownTotal={180}
+              />
+            </div>
+          )}
+
+          {/* v2.1 Signal Control Panel (semi-automatic confirmation) */}
+          {d.signalControl && (
+            <div style={{ padding: "4px 14px" }}>
+              <SignalControlPanel
+                data={d.signalControl}
+                onConfirm={handleSignalConfirm}
+                onReject={handleSignalReject}
               />
             </div>
           )}
@@ -491,6 +525,11 @@ export default function QuantTerminal({ matchId = "demo" }) {
               volatility={d.risk?.market_volatility || "Medium"}
             />
           </div>
+
+          {/* Track Record / Performance */}
+          {d.performance && (
+            <TrackRecord data={d.performance} label={t.todayPerformance} />
+          )}
         </div>
       </div>
 
@@ -501,6 +540,9 @@ export default function QuantTerminal({ matchId = "demo" }) {
           SEQ {d.meta.seq} | REFRESH 2s | MODEL XGB+POISSON | {d.minute}'/90'
         </span>
       </div>
+
+      {/* ═══ EVENT ALERT OVERLAY ═══ */}
+      <EventAlert events={d.events} score={d.score} delta={d.delta} minute={d.minute} t={t} />
 
       {/* ═══ WATERMARK OVERLAY ═══ */}
       <div style={{
