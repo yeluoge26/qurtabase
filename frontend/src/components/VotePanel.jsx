@@ -52,7 +52,7 @@ function VoteBar({ label, pct, color }) {
   );
 }
 
-function ComparisonRow({ label, modelVal, audienceVal, divergent }) {
+function ComparisonRow({ label, modelVal, audienceVal, divergent, vsLabel = "vs", divergeLabel = "DIVERGE" }) {
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -68,7 +68,7 @@ function ComparisonRow({ label, modelVal, audienceVal, divergent }) {
         }}>
           {(modelVal * 100).toFixed(1)}%
         </span>
-        <span style={{ fontSize: 8, color: C.textMuted }}>vs</span>
+        <span style={{ fontSize: 8, color: C.textMuted }}>{vsLabel}</span>
         <span style={{
           fontSize: 10, fontWeight: 700, color: C.text,
           fontFamily: "'IBM Plex Mono', monospace", minWidth: 48, textAlign: "right",
@@ -82,7 +82,7 @@ function ComparisonRow({ label, modelVal, audienceVal, divergent }) {
             background: C.accent + "20", color: C.accent,
             border: `1px solid ${C.accent}30`,
           }}>
-            DIVERGE
+            {divergeLabel}
           </span>
         )}
       </div>
@@ -146,9 +146,9 @@ export default function VotePanel({ votes = {}, modelProbs = {}, lang = "en", L 
       {/* Vote bars */}
       {total > 0 && (
         <>
-          <VoteBar label="1  HOME" pct={pctHome} color={BAR_COLORS.home} />
-          <VoteBar label="X  DRAW" pct={pctDraw} color={BAR_COLORS.draw} />
-          <VoteBar label="2  AWAY" pct={pctAway} color={BAR_COLORS.away} />
+          <VoteBar label={L.voteHome || "1  HOME"} pct={pctHome} color={BAR_COLORS.home} />
+          <VoteBar label={L.voteDraw || "X  DRAW"} pct={pctDraw} color={BAR_COLORS.draw} />
+          <VoteBar label={L.voteAway || "2  AWAY"} pct={pctAway} color={BAR_COLORS.away} />
 
           {/* Comparison section */}
           <div style={{
@@ -160,13 +160,13 @@ export default function VotePanel({ votes = {}, modelProbs = {}, lang = "en", L 
             }}>
               <span>{compLabel}</span>
               <div style={{ display: "flex", gap: 12 }}>
-                <span style={{ fontSize: 7, color: C.accentBlue, letterSpacing: 1 }}>MODEL</span>
-                <span style={{ fontSize: 7, color: C.textMuted, letterSpacing: 1 }}>AUDIENCE</span>
+                <span style={{ fontSize: 7, color: C.accentBlue, letterSpacing: 1 }}>{L.modelLabel || "MODEL"}</span>
+                <span style={{ fontSize: 7, color: C.textMuted, letterSpacing: 1 }}>{L.audienceLabel || "AUDIENCE"}</span>
               </div>
             </div>
-            <ComparisonRow label="HOME" modelVal={mp.home} audienceVal={pctHome} divergent={divHome} />
-            <ComparisonRow label="DRAW" modelVal={mp.draw} audienceVal={pctDraw} divergent={divDraw} />
-            <ComparisonRow label="AWAY" modelVal={mp.away} audienceVal={pctAway} divergent={divAway} />
+            <ComparisonRow label={L.home || "HOME"} modelVal={mp.home} audienceVal={pctHome} divergent={divHome} vsLabel={L.vs || "vs"} divergeLabel={L.diverged || "DIVERGE"} />
+            <ComparisonRow label={L.draw || "DRAW"} modelVal={mp.draw} audienceVal={pctDraw} divergent={divDraw} vsLabel={L.vs || "vs"} divergeLabel={L.diverged || "DIVERGE"} />
+            <ComparisonRow label={L.away || "AWAY"} modelVal={mp.away} audienceVal={pctAway} divergent={divAway} vsLabel={L.vs || "vs"} divergeLabel={L.diverged || "DIVERGE"} />
           </div>
 
           {/* Footer */}
@@ -174,7 +174,7 @@ export default function VotePanel({ votes = {}, modelProbs = {}, lang = "en", L 
             marginTop: 8, paddingTop: 4, textAlign: "center",
             fontSize: 8, color: C.textMuted, letterSpacing: 1,
           }}>
-            Based on {total} votes
+            {(L.basedOnVotes || "Based on {n} votes").replace("{n}", total)}
           </div>
         </>
       )}

@@ -4,6 +4,8 @@
  * Builds trust — Pro tier
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   border: "#1E2530",
   textDim: "#6B7280",
@@ -14,17 +16,21 @@ const C = {
   text: "#E5E5E5",
 };
 
-const FACTOR_LABELS = {
-  shots_on_target_delta: "SHOTS ON TARGET",
-  pressure_index_delta: "PRESSURE INDEX",
-  goal_scored: "GOAL SCORED",
-  red_card_impact: "RED CARD",
-  possession_swing: "POSSESSION",
-  xg_delta_change: "xG DELTA",
-  time_decay: "TIME DECAY",
-};
+function getFactorLabels(L) {
+  return {
+    shots_on_target_delta: L?.factorShotsOnTarget,
+    pressure_index_delta: L?.factorPressure,
+    goal_scored: L?.factorGoal,
+    red_card_impact: L?.factorRedCard,
+    possession_swing: L?.factorPossession,
+    xg_delta_change: L?.factorXgDelta,
+    time_decay: L?.factorTimeDecay,
+  };
+}
 
-export default function ExplainPanel({ explain }) {
+export default function ExplainPanel({ explain, lang = "en" }) {
+  const L = LANG[lang];
+  const FACTOR_LABELS = getFactorLabels(L);
   if (!explain || !explain.topFactors?.length) {
     return null;
   }
@@ -32,7 +38,7 @@ export default function ExplainPanel({ explain }) {
   return (
     <div style={{ padding: "8px 0" }}>
       <div style={{ fontSize: 9, color: C.accent, letterSpacing: 1.5, fontWeight: 600, marginBottom: 6 }}>
-        WHY Δ
+        {L?.whyDelta}
       </div>
       <div style={{ fontSize: 9, color: C.textDim, marginBottom: 6, fontFamily: "mono" }}>
         {explain.summary}

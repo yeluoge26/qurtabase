@@ -4,6 +4,8 @@
  * Pro tier feature — core monetization
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   border: "#1E2530",
   textDim: "#6B7280",
@@ -15,11 +17,12 @@ const C = {
   text: "#E5E5E5",
 };
 
-export default function MarketEdge({ market, tier = "pro" }) {
+export default function MarketEdge({ market, tier = "pro", lang = "en" }) {
+  const L = LANG[lang];
   if (!market) {
     return (
       <div style={{ padding: "6px 0", fontSize: 9, color: C.textMuted, fontFamily: "mono" }}>
-        MARKET DATA UNAVAILABLE
+        {L?.marketUnavailable}
       </div>
     );
   }
@@ -30,7 +33,7 @@ export default function MarketEdge({ market, tier = "pro" }) {
     <div>
       {/* Odds row */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1.5 }}>ODDS</span>
+        <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1.5 }}>{L?.odds}</span>
         <div style={{ display: "flex", gap: 16, fontFamily: "mono", fontSize: 11 }}>
           <span style={{ color: C.text }}>{odds.home}</span>
           <span style={{ color: C.textDim }}>{odds.draw}</span>
@@ -40,7 +43,7 @@ export default function MarketEdge({ market, tier = "pro" }) {
 
       {/* Market implied */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1.5 }}>MKT IMPLIED</span>
+        <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1.5 }}>{L?.mktImplied}</span>
         <div style={{ display: "flex", gap: 16, fontFamily: "mono", fontSize: 11 }}>
           <span style={{ color: C.textDim }}>{implied.home}%</span>
           <span style={{ color: C.textDim }}>{implied.draw}%</span>
@@ -50,7 +53,7 @@ export default function MarketEdge({ market, tier = "pro" }) {
 
       {/* Edge (AI - Market) */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontSize: 9, color: C.accentBlue, letterSpacing: 1.5, fontWeight: 600 }}>EDGE (AI-MKT)</span>
+        <span style={{ fontSize: 9, color: C.accentBlue, letterSpacing: 1.5, fontWeight: 600 }}>{L?.edgeAiMkt}</span>
         <div style={{ display: "flex", gap: 16, fontFamily: "mono", fontSize: 11, fontWeight: 600 }}>
           {["home", "draw", "away"].map((k) => {
             const v = edge[k];

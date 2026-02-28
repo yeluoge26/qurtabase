@@ -5,6 +5,7 @@
  * Bloomberg terminal style
  */
 import { useState, useEffect, useRef } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#0E1117", bgCard: "#131720",
@@ -66,7 +67,9 @@ export default function SignalCooldownBar({
   signalState = "monitoring",
   cooldownSec = 0,
   cooldownTotal = 180,
+  lang = "en",
 }) {
+  const L = LANG[lang];
   const dots = useAnimatedDots();
   const timer = useCooldownTimer(cooldownSec);
   const progressPct = cooldownTotal > 0
@@ -82,26 +85,26 @@ export default function SignalCooldownBar({
 
   switch (signalState) {
     case "monitoring":
-      label = "MONITORING";
+      label = L?.monitoring;
       labelColor = C.textMuted;
       showPulse = true;
       break;
     case "building":
-      label = `EDGE BUILDING${dots}`;
+      label = `${L?.edgeBuilding}${dots}`;
       labelColor = C.accent;
       break;
     case "ready":
-      label = "SIGNAL READY";
+      label = L?.signalReady;
       labelColor = C.accentBright;
       showGlow = true;
       break;
     case "cooldown":
-      label = `COOLDOWN ${timer.display}`;
+      label = `${L?.cooldownLabel} ${timer.display}`;
       labelColor = C.textDim;
       showProgress = true;
       break;
     default:
-      label = "MONITORING";
+      label = L?.monitoring;
       labelColor = C.textMuted;
       showPulse = true;
   }
@@ -211,7 +214,7 @@ export default function SignalCooldownBar({
             color: C.textMuted,
             textTransform: "uppercase",
           }}>
-            SIGNAL STATUS
+            {L?.signalCooldown}
           </span>
         </div>
       </div>

@@ -276,17 +276,23 @@ class MatchConfig(BaseModel):
     api_football_id: str = ""        # API-Football fixture ID
     odds_sport: str = "soccer_epl"   # The Odds API sport key
     active: bool = True
+    kickoff: str = ""                # Kickoff time (ISO 8601 or HH:MM)
+    status: str = ""                 # Match status: upcoming/live/finished/HT
+    live_enabled: bool = False       # Whether live streaming is enabled
 
 
 @app.get("/api/health")
 async def health():
     return {
         "status": "ok",
-        "version": "1.1.0",
+        "version": "2.3.0",
         "demo_mode": settings.demo_mode,
         "model_loaded": get_predictor() is not None,
         "active_matches": len([m for m in managed_matches.values() if m.get("active")]),
+        "live_matches": len([m for m in managed_matches.values() if m.get("live_enabled")]),
         "ws_connections": ws_manager.get_connection_count(),
+        "live_source": settings.live_source,
+        "has_odds": settings.has_odds,
         "timestamp": time.time(),
     }
 
@@ -321,6 +327,15 @@ async def admin_toggle_match(match_id: str):
     raise HTTPException(404, "Match not found")
 
 
+@app.put("/api/admin/matches/{match_id}/live")
+async def admin_toggle_live(match_id: str):
+    """Toggle live streaming for a match."""
+    if match_id in managed_matches:
+        managed_matches[match_id]["live_enabled"] = not managed_matches[match_id].get("live_enabled", False)
+        return managed_matches[match_id]
+    raise HTTPException(404, "Match not found")
+
+
 @app.get("/api/matches/live")
 async def get_live_matches():
     """List active matches for frontend."""
@@ -331,6 +346,182 @@ async def get_live_matches():
     return [{"match_id": "demo", "league": "EPL", "home_name": "Arsenal",
              "away_name": "Chelsea", "home_short": "ARS", "away_short": "CHE",
              "active": True}]
+
+
+@app.get("/api/admin/fixtures")
+async def admin_fetch_fixtures(date_from: str = "", date_to: str = "",
+                                league_id: str = ""):
+    """
+    Fetch upcoming/today's fixtures from live data sources.
+    Returns match list with kickoff times for admin to import.
+    """
+    from datetime import datetime, timedelta
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    if not date_from:
+        date_from = today
+    if not date_to:
+        date_to = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+
+    fixtures = []
+
+    # Source 1: AllSportsApi fixtures
+    if settings.ALLSPORTS_API_KEY:
+        try:
+            raw = await allsports.fetch_fixtures_by_date(date_from, date_to,
+                                                          league_id or None)
+            for ev in raw:
+                status = ev.get("event_status", "")
+                fixtures.append({
+                    "source": "allsports",
+                    "match_id": str(ev.get("event_key", "")),
+                    "league": ev.get("league_name", ""),
+                    "league_key": str(ev.get("league_key", "")),
+                    "home_name": ev.get("event_home_team", ""),
+                    "away_name": ev.get("event_away_team", ""),
+                    "home_id": str(ev.get("home_team_key", "")),
+                    "away_id": str(ev.get("away_team_key", "")),
+                    "kickoff": ev.get("event_date", "") + "T" + ev.get("event_time", "00:00"),
+                    "status": _parse_fixture_status(status),
+                    "score": ev.get("event_final_result", ""),
+                    "round": ev.get("league_round", ""),
+                    "country": ev.get("country_name", ""),
+                })
+        except Exception as e:
+            print(f"AllSports fixtures error: {e}")
+
+    # Source 2: AllSportsApi live matches (currently in-play)
+    if settings.ALLSPORTS_API_KEY and not fixtures:
+        try:
+            live = await allsports.fetch_live_matches()
+            for m in live:
+                fixtures.append({
+                    "source": "allsports-live",
+                    "match_id": m["id"],
+                    "league": m.get("league", ""),
+                    "home_name": m.get("home", ""),
+                    "away_name": m.get("away", ""),
+                    "kickoff": "",
+                    "status": "live",
+                    "score": m.get("score", ""),
+                    "round": "",
+                    "minute": m.get("minute", 0),
+                })
+        except Exception:
+            pass
+
+    # Source 3: The Odds API — upcoming matches with odds
+    if settings.has_odds:
+        try:
+            # Fetch from multiple sport keys
+            sport_keys = [
+                "soccer_epl", "soccer_spain_la_liga", "soccer_germany_bundesliga",
+                "soccer_italy_serie_a", "soccer_france_ligue_one",
+                "soccer_uefa_champs_league", "soccer_fifa_world_cup",
+            ]
+            for sport in sport_keys:
+                odds_data = await odds_api.fetch_all_odds(sport)
+                if not odds_data:
+                    continue
+                for match in odds_data:
+                    mid = match.get("id", "")
+                    # Check if already in fixtures
+                    existing_ids = {f["match_id"] for f in fixtures}
+                    if mid in existing_ids:
+                        continue
+                    fixtures.append({
+                        "source": "odds-api",
+                        "match_id": mid,
+                        "league": _sport_key_to_league(sport),
+                        "home_name": match.get("home_team", ""),
+                        "away_name": match.get("away_team", ""),
+                        "kickoff": match.get("commence_time", ""),
+                        "status": "upcoming",
+                        "odds_sport": sport,
+                        "odds_home": match.get("home", 0),
+                        "odds_draw": match.get("draw", 0),
+                        "odds_away": match.get("away", 0),
+                    })
+        except Exception as e:
+            print(f"Odds API fixtures error: {e}")
+
+    # Sort by kickoff time
+    fixtures.sort(key=lambda x: x.get("kickoff", ""))
+
+    return {
+        "fixtures": fixtures,
+        "count": len(fixtures),
+        "date_range": {"from": date_from, "to": date_to},
+        "sources": {
+            "allsports": bool(settings.ALLSPORTS_API_KEY),
+            "odds_api": settings.has_odds,
+        },
+    }
+
+
+@app.post("/api/admin/import-fixture")
+async def admin_import_fixture(data: dict):
+    """
+    Import a fixture from the fixtures list into managed matches.
+    Auto-populates match config from the fixture data.
+    """
+    match_id = data.get("match_id", "")
+    if not match_id:
+        raise HTTPException(400, "match_id required")
+
+    home = data.get("home_name", "Home")
+    away = data.get("away_name", "Away")
+
+    config = {
+        "match_id": match_id,
+        "league": data.get("league", ""),
+        "round": data.get("round", ""),
+        "home_name": home,
+        "away_name": away,
+        "home_short": home[:3].upper() if home else "HOM",
+        "away_short": away[:3].upper() if away else "AWY",
+        "home_name_cn": data.get("home_name_cn", ""),
+        "away_name_cn": data.get("away_name_cn", ""),
+        "home_elo": data.get("home_elo", 1500),
+        "away_elo": data.get("away_elo", 1500),
+        "api_football_id": data.get("api_football_id", match_id),
+        "odds_sport": data.get("odds_sport", "soccer_epl"),
+        "active": True,
+        "kickoff": data.get("kickoff", ""),
+        "status": data.get("status", "upcoming"),
+        "live_enabled": False,
+    }
+
+    managed_matches[match_id] = config
+    return {"status": "ok", "match_id": match_id, "config": config}
+
+
+def _parse_fixture_status(status: str) -> str:
+    """Parse AllSportsApi status into simplified status."""
+    if not status:
+        return "upcoming"
+    s = status.strip()
+    if s.isdigit() or s == "Half Time":
+        return "live"
+    if s in ("Finished", "After Pen.", "After ET"):
+        return "finished"
+    if s in ("Postponed", "Cancelled", "Suspended"):
+        return "cancelled"
+    return "upcoming"
+
+
+def _sport_key_to_league(sport_key: str) -> str:
+    """Map The Odds API sport key to league name."""
+    return {
+        "soccer_epl": "EPL",
+        "soccer_spain_la_liga": "La Liga",
+        "soccer_germany_bundesliga": "Bundesliga",
+        "soccer_italy_serie_a": "Serie A",
+        "soccer_france_ligue_one": "Ligue 1",
+        "soccer_uefa_champs_league": "UCL",
+        "soccer_fifa_world_cup": "FIFA World Cup",
+        "soccer_uefa_europa_league": "UEL",
+    }.get(sport_key, sport_key)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1044,13 +1235,14 @@ async def startup():
         "home_name_cn": "阿森纳", "away_name_cn": "切尔西",
         "home_elo": 1650, "away_elo": 1580,
         "api_football_id": "", "odds_sport": "soccer_epl",
-        "active": True,
+        "active": True, "kickoff": "", "status": "demo",
+        "live_enabled": False,
     }
     # Seed demo performance data
     performance_tracker.seed_demo_data()
 
     print("=" * 50)
-    print("  AI Football Quant Terminal v1.1 — Backend")
+    print("  AI Football Quant Terminal v2.3 — Backend")
     print(f"  Mode: {'DEMO' if settings.demo_mode else 'LIVE'}")
     print(f"  Live source: {settings.live_source}")
     print(f"  Odds: {'The Odds API' if settings.has_odds else 'None'}")

@@ -5,6 +5,7 @@
  * Bloomberg terminal style
  */
 import { useState, useEffect, useRef } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#0E1117", bgCard: "#131720",
@@ -30,8 +31,9 @@ export default function AISpeakingIndicator({ speaking = false, text = "", lang 
     return () => clearTimeout(fadeRef.current);
   }, [speaking]);
 
-  const labelSpeaking = lang === "zh" ? "AI \u64AD\u62A5\u4E2D..." : "AI SPEAKING...";
-  const labelReady = lang === "zh" ? "AI \u5C31\u7EEA" : "AI READY";
+  const L = LANG[lang];
+  const labelSpeaking = L?.aiSpeaking || "AI SPEAKING...";
+  const labelReady = L?.aiReady || "AI READY";
 
   return (
     <div style={{

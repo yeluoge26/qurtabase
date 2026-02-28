@@ -32,14 +32,14 @@ function StatusDot({ status }) {
   );
 }
 
-function SignalIndicator({ signal }) {
+function SignalIndicator({ signal, signalLabel = "SIGNAL" }) {
   if (!signal || signal === "NO SIGNAL") {
     return <span style={{ fontSize: 8, color: C.textMuted, fontWeight: 600 }}>--</span>;
   }
   const color = signal === "CONFIRMED" ? C.up : signal === "READY" ? C.accent : C.accentBlue;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color }}>SIGNAL</span>
+      <span style={{ fontSize: 8, fontWeight: 700, letterSpacing: 1, color }}>{signalLabel}</span>
       <div style={{
         width: 5, height: 5, borderRadius: "50%", background: color,
         boxShadow: `0 0 4px ${color}`,
@@ -48,7 +48,7 @@ function SignalIndicator({ signal }) {
   );
 }
 
-function MatchCard({ match, onClick }) {
+function MatchCard({ match, onClick, L = {} }) {
   const isLive = match.status === "live" || match.status === "LIVE";
   const edgeVal = match.edge || 0;
   const edgeColor = edgeVal > 0 ? C.up : edgeVal < 0 ? C.down : C.textDim;
@@ -85,7 +85,7 @@ function MatchCard({ match, onClick }) {
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <StatusDot status={match.status} />
           <span style={{ fontSize: 8, color: isLive ? C.up : C.textMuted, fontWeight: 600, letterSpacing: 1 }}>
-            {isLive ? "LIVE" : "UPCOMING"}
+            {isLive ? (L.liveStatus || "LIVE") : (L.upcoming || "UPCOMING")}
           </span>
         </div>
         {isLive && (
@@ -130,19 +130,19 @@ function MatchCard({ match, onClick }) {
         </span>
         <span style={{ color: C.textMuted }}>|</span>
         <span>
-          EDGE <span style={{ color: edgeColor, fontWeight: 700 }}>
+          {L.edgeLabel || "EDGE"} <span style={{ color: edgeColor, fontWeight: 700 }}>
             {edgeVal > 0 ? "+" : ""}{edgeVal.toFixed(1)}%
           </span>
         </span>
         <span style={{ color: C.textMuted }}>|</span>
-        <SignalIndicator signal={match.signal} />
+        <SignalIndicator signal={match.signal} signalLabel={L.signalLabel || "SIGNAL"} />
       </div>
     </div>
   );
 }
 
 export default function MatchGrid({ matches = [], lang = "en", L = {}, onClick }) {
-  const headerLabel = L.multiMatch || "MULTI-MATCH TERMINAL";
+  const headerLabel = L.multiMatchTerminal || "MULTI-MATCH TERMINAL";
   const emptyLabel = L.noActiveMatches || "No active matches";
 
   return (
@@ -184,7 +184,7 @@ export default function MatchGrid({ matches = [], lang = "en", L = {}, onClick }
           gap: 8,
         }}>
           {matches.map(m => (
-            <MatchCard key={m.matchId} match={m} onClick={onClick} />
+            <MatchCard key={m.matchId} match={m} onClick={onClick} L={L} />
           ))}
         </div>
       )}

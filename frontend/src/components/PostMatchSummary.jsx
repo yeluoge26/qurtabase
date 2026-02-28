@@ -5,6 +5,7 @@
  * Displays final score, lambda accuracy, peak metrics, and key analytics.
  */
 import { useState, useEffect } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#0E1117",
@@ -20,7 +21,8 @@ const C = {
   red: "#FF3D00",
 };
 
-export default function PostMatchSummary({ data, t }) {
+export default function PostMatchSummary({ data, t, lang = "en" }) {
+  const L = LANG[lang];
   const [visible, setVisible] = useState(false);
   const [render, setRender] = useState(false);
 
@@ -87,7 +89,7 @@ export default function PostMatchSummary({ data, t }) {
           letterSpacing: 4,
           color: C.gold,
         }}>
-          {t?.matchSummary || "MATCH SUMMARY"}
+          {L?.matchSummary || "MATCH SUMMARY"}
         </span>
         <span style={{
           fontSize: 9,
@@ -141,7 +143,7 @@ export default function PostMatchSummary({ data, t }) {
           onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.gold; }}
           onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; }}
         >
-          EXPORT JSON
+          {L?.exportJson || "EXPORT JSON"}
         </button>
       </div>
 
@@ -162,7 +164,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            {t?.finalScore || "FINAL SCORE"}
+            {L?.finalScore || "FINAL SCORE"}
           </div>
           <div style={{
             fontSize: 28,
@@ -184,7 +186,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            Pre {"\u03BB"}
+            {L?.preLambda || "Pre \u03BB"}
           </div>
           <div style={{
             fontSize: 22,
@@ -205,7 +207,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            {t?.peakLambda || "Peak \u03BB"}
+            {L?.peakLambda || "Peak \u03BB"}
           </div>
           <div style={{
             fontSize: 22,
@@ -226,7 +228,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            Avg {"\u03BB"}
+            {L?.avgLambda || "Avg \u03BB"}
           </div>
           <div style={{
             fontSize: 22,
@@ -257,7 +259,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            BEST EDGE
+            {L?.bestEdgeLabel || "BEST EDGE"}
           </div>
           <div style={{
             fontSize: 18,
@@ -277,7 +279,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            {"\u03BB"} ACCURACY
+            {L?.lambdaAccuracy || "\u03BB ACCURACY"}
           </div>
           <div style={{
             fontSize: 18,
@@ -298,7 +300,7 @@ export default function PostMatchSummary({ data, t }) {
             marginBottom: 6,
             fontWeight: 600,
           }}>
-            UPDATES
+            {L?.updates || "UPDATES"}
           </div>
           <div style={{
             fontSize: 18,
@@ -321,11 +323,11 @@ export default function PostMatchSummary({ data, t }) {
           color: C.textDim,
           letterSpacing: 1,
         }}>
-          Pre {"\u03BB"}: <span style={{ color: C.text, fontWeight: 700 }}>{preLambda.toFixed(2)}</span>
+          {L?.preLambdaLabel || "Pre \u03BB"}: <span style={{ color: C.text, fontWeight: 700 }}>{preLambda.toFixed(2)}</span>
           <span style={{ color: C.textMuted, margin: "0 8px" }}>{"\u2192"}</span>
-          Final Goals: <span style={{ color: C.text, fontWeight: 700 }}>{finalGoals}</span>
+          {L?.finalGoalsLabel || "Final Goals"}: <span style={{ color: C.text, fontWeight: 700 }}>{finalGoals}</span>
           <span style={{ color: C.textMuted, margin: "0 8px" }}>{"\u2192"}</span>
-          Accuracy: <span style={{
+          {L?.accuracyLabel || "Accuracy"}: <span style={{
             color: isHit ? C.green : C.red,
             fontWeight: 800,
           }}>{accuracy} {isHit ? "\u2713" : "\u2717"}</span>

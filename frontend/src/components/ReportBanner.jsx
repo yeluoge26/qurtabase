@@ -3,19 +3,22 @@
  * Shows HT/FT report ready notification
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   accent: "#F4C430",
   bgCard: "#131720",
   border: "#1E2530",
 };
 
-export default function ReportBanner({ report }) {
+export default function ReportBanner({ report, lang = "en" }) {
+  const L = LANG[lang];
   if (!report) return null;
 
   const show = report.halfTimeReady || report.fullTimeReady;
   if (!show) return null;
 
-  const label = report.fullTimeReady ? "FT REPORT READY" : "HT REPORT READY";
+  const label = report.fullTimeReady ? L?.ftReportReady : L?.htReportReady;
 
   return (
     <div
@@ -33,7 +36,7 @@ export default function ReportBanner({ report }) {
         animation: "blink 1.5s infinite",
       }}
     >
-      {label} — PRESS [R] TO EXPORT
+      {label} {L?.pressToExport}
     </div>
   );
 }

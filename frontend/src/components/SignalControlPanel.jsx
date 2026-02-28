@@ -10,6 +10,7 @@
  *   cooldown  - dim border, countdown timer
  */
 import { useState, useEffect, useRef, useCallback } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#131720",
@@ -59,7 +60,8 @@ function useCooldown(remaining) {
 // ════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════════════════
-export default function SignalControlPanel({ data, onConfirm, onReject }) {
+export default function SignalControlPanel({ data, onConfirm, onReject, lang = "en" }) {
+  const L = LANG[lang];
   const [confirmHover, setConfirmHover] = useState(false);
   const [rejectHover, setRejectHover] = useState(false);
 
@@ -107,19 +109,19 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
     borderColor = C.gold;
     bgTint = C.gold + "08";
     headerIcon = "\u26A1";
-    headerText = "SIGNAL READY";
+    headerText = L?.signalReady || "SIGNAL READY";
     headerColor = C.gold;
   } else if (state === "confirmed") {
     borderColor = C.green;
     bgTint = C.green + "0C";
     headerIcon = "\u2713";
-    headerText = "SIGNAL CONFIRMED";
+    headerText = L?.signalConfirmed || "SIGNAL CONFIRMED";
     headerColor = C.green;
   } else if (state === "cooldown") {
     borderColor = C.borderLight;
     bgTint = C.bg;
     headerIcon = "";
-    headerText = `COOLDOWN ${cooldown.display}`;
+    headerText = `${L?.cooldownLabel || "COOLDOWN"} ${cooldown.display}`;
     headerColor = C.textMuted;
   }
 
@@ -164,20 +166,20 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
             }}
           >
             <div style={{ display: "flex", gap: 20 }}>
-              <DataPair label="Line" value={line.toFixed(2)} />
+              <DataPair label={L?.line || "Line"} value={line.toFixed(2)} />
               <DataPair
-                label="Edge"
+                label={L?.edge || "Edge"}
                 value={`${edgeSign}${edge.toFixed(1)}%`}
                 color={edge > 0 ? C.up : edge < 0 ? C.down : C.textDim}
               />
             </div>
             <div style={{ display: "flex", gap: 20 }}>
               <DataPair
-                label="Model"
+                label={L?.model || "Model"}
                 value={`${model_prob.toFixed(1)}%`}
               />
               <DataPair
-                label="Market"
+                label={L?.market || "Market"}
                 value={`${market_prob.toFixed(1)}%`}
               />
             </div>
@@ -211,7 +213,7 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
                 transition: "background 150ms",
               }}
             >
-              {"\u2713"} CONFIRM
+              {"\u2713"} {L?.confirm || "CONFIRM"}
             </button>
 
             {/* REJECT */}
@@ -234,7 +236,7 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
                 transition: "border-color 150ms, color 150ms",
               }}
             >
-              {"\u2717"} REJECT
+              {"\u2717"} {L?.reject || "REJECT"}
             </button>
           </div>
 
@@ -248,7 +250,7 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
               letterSpacing: 1.5,
             }}
           >
-            ENTER = CONFIRM | ESC = REJECT
+            {L?.enterConfirm || "ENTER = CONFIRM | ESC = REJECT"}
           </div>
         </>
       )}
@@ -264,9 +266,9 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
               marginBottom: 4,
             }}
           >
-            OVER {line.toFixed(2)}{" "}
+            {L?.over || "OVER"} {line.toFixed(2)}{" "}
             <span style={{ color: C.green, marginLeft: 6 }}>
-              | Edge {edgeSign}{edge.toFixed(1)}%
+              | {L?.edge || "Edge"} {edgeSign}{edge.toFixed(1)}%
             </span>
           </div>
           <div
@@ -276,7 +278,7 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
               letterSpacing: 1,
             }}
           >
-            Locked {"\u2014"} entering cooldown...
+            {L?.locked || "Locked \u2014 entering cooldown..."}
           </div>
         </div>
       )}
@@ -290,7 +292,7 @@ export default function SignalControlPanel({ data, onConfirm, onReject }) {
             letterSpacing: 1,
           }}
         >
-          Next evaluation after cooldown
+          {L?.nextEvalAfterCooldown || "Next evaluation after cooldown"}
         </div>
       )}
     </div>

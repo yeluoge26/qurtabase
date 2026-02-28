@@ -38,8 +38,8 @@ export default function ScoreMatrix({ data, homeName, awayName, lang, L }) {
     }
   }
 
-  const hName = homeName || "HOME";
-  const aName = awayName || "AWAY";
+  const hName = homeName || L?.home || "HOME";
+  const aName = awayName || L?.away || "AWAY";
   const cols = matrix[0]?.length || 0;
 
   return (
@@ -67,7 +67,7 @@ export default function ScoreMatrix({ data, homeName, awayName, lang, L }) {
           }}>{L?.poissonModel || "POISSON MODEL"}</span>
         </div>
         <span style={{ fontSize: 8, color: C.textMuted, fontFamily: FONT }}>
-          {"\u03BB"} H:{homeLambda?.toFixed(2) || "0.00"} A:{awayLambda?.toFixed(2) || "0.00"}
+          {"\u03BB"} {L?.homeAbbr || "H"}:{homeLambda?.toFixed(2) || "0.00"} {L?.awayAbbr || "A"}:{awayLambda?.toFixed(2) || "0.00"}
         </span>
       </div>
 
@@ -100,7 +100,7 @@ export default function ScoreMatrix({ data, homeName, awayName, lang, L }) {
                 letterSpacing: 0.5, textAlign: "center",
                 borderBottom: `1px solid ${C.borderLight}`,
                 borderRight: `1px solid ${C.borderLight}`,
-              }}>H\A</th>
+              }}>{L?.homeAbbr || "H"}\{L?.awayAbbr || "A"}</th>
               {Array.from({ length: cols }, (_, i) => (
                 <th key={i} style={{
                   padding: "3px 1px",

@@ -1,0 +1,72 @@
+{
+  "feature_names": [
+    "elo_diff",
+    "elo_diff_norm",
+    "home_elo_norm",
+    "away_elo_norm",
+    "elo_home_prob",
+    "elo_away_prob",
+    "elo_draw_est",
+    "xg_diff",
+    "xg_total",
+    "home_xg",
+    "away_xg",
+    "home_form",
+    "away_form",
+    "form_diff",
+    "home_attack",
+    "away_attack",
+    "home_defense",
+    "away_defense",
+    "attack_diff",
+    "defense_diff",
+    "is_knockout"
+  ],
+  "n_features": 21,
+  "n_classes": 3,
+  "class_names": [
+    "Away",
+    "Draw",
+    "Home"
+  ],
+  "class_mapping": {
+    "A": 0,
+    "D": 1,
+    "H": 2
+  },
+  "training_data": {
+    "n_wc_matches": 964,
+    "n_intl_matches_for_elo": 49071,
+    "date_range": [
+      "1930-07-13 00:00:00",
+      "2022-12-18 00:00:00"
+    ],
+    "source": "FIFA World Cup 1930-2022 + 49K intl Elo"
+  },
+  "evaluation": {
+    "logistic": {
+      "mean_accuracy": 0.49874999999999997,
+      "std_accuracy": 0.06267475568360838,
+      "mean_logloss": 1.2055810370099955,
+      "mean_brier_home": 0.2511163232015507,
+      "mean_brier_draw": 0.1864471092114776,
+      "mean_brier_away": 0.20422180151572458
+    },
+    "xgboost": {
+      "mean_accuracy": 0.48999999999999994,
+      "std_accuracy": 0.06490377492873586,
+      "mean_logloss": 1.234075052062711,
+      "mean_brier_home": 0.2746887028217316,
+      "mean_brier_draw": 0.19908873438835145,
+      "mean_brier_away": 0.21178636252880095
+    },
+    "calibrated": {
+      "mean_accuracy": 0.4515625,
+      "std_accuracy": 0.027731623983279437,
+      "mean_logloss": 1.1190819428187768,
+      "mean_brier_home": 0.26206372047351933,
+      "mean_brier_draw": 0.18496454370556525,
+      "mean_brier_away": 0.22313332472387049
+    }
+  }
+}

@@ -4,6 +4,8 @@
  * Displays today's signal performance: wins, losses, ROI, edge, signal log
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   bg: "#0E1117", bgCard: "#131720",
   border: "#1E2530", borderLight: "#252D3A",
@@ -18,7 +20,9 @@ const RESULT_CFG = {
   pending: { marker: "\u25CF", color: C.accent, label: "PEND" },
 };
 
-export default function TrackRecord({ data, label = "TODAY PERFORMANCE" }) {
+export default function TrackRecord({ data, label, lang = "en" }) {
+  const L = LANG[lang];
+  const displayLabel = label || L?.todayPerformance || "TODAY PERFORMANCE";
   if (!data) return null;
 
   const {
@@ -48,34 +52,34 @@ export default function TrackRecord({ data, label = "TODAY PERFORMANCE" }) {
         fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent,
         marginBottom: 6, paddingBottom: 4, borderBottom: `1px solid ${C.borderLight}`,
       }}>
-        {label}
+        {displayLabel}
       </div>
 
       {/* Summary Row 1: Signals + Wins */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
         <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1, fontWeight: 600 }}>
-          Signals: <span style={{ color: C.text, fontWeight: 700 }}>{total_signals}</span>
+          {L?.signals || "Signals"}: <span style={{ color: C.text, fontWeight: 700 }}>{total_signals}</span>
         </span>
         <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1, fontWeight: 600 }}>
-          Wins: <span style={{ color: C.up, fontWeight: 700 }}>{wins}</span>
+          {L?.wins || "Wins"}: <span style={{ color: C.up, fontWeight: 700 }}>{wins}</span>
         </span>
       </div>
 
       {/* Summary Row 2: Loss + ROI */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
         <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1, fontWeight: 600 }}>
-          Loss: <span style={{ color: C.down, fontWeight: 700 }}>{losses}</span>
+          {L?.losses || "Loss"}: <span style={{ color: C.down, fontWeight: 700 }}>{losses}</span>
         </span>
         <span style={{ fontSize: 14, fontWeight: 800, fontFamily: "'IBM Plex Mono', monospace", color: roiColor }}>
           {roi_pct > 0 ? "+" : ""}{roi_pct.toFixed(1)}%
-          <span style={{ fontSize: 9, color: C.textDim, fontWeight: 600, marginLeft: 4 }}>ROI</span>
+          <span style={{ fontSize: 9, color: C.textDim, fontWeight: 600, marginLeft: 4 }}>{L?.roi || "ROI"}</span>
         </span>
       </div>
 
       {/* Best Edge */}
       <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0 2px", marginTop: 2 }}>
         <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1, fontWeight: 600 }}>
-          Best Edge
+          {L?.bestEdge || "Best Edge"}
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, color: C.up, fontFamily: "'IBM Plex Mono', monospace" }}>
           +{best_edge.toFixed(1)}%

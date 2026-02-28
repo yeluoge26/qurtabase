@@ -5,6 +5,8 @@
  * Elite tier feature
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   bg: "#0E1117", bgCard: "#131720",
   border: "#1E2530", borderLight: "#252D3A",
@@ -33,7 +35,9 @@ function StabilityBar({ value, max = 100 }) {
   );
 }
 
-export default function RiskPanel({ data, label = "RISK PANEL" }) {
+export default function RiskPanel({ data, label, lang = "en" }) {
+  const L = LANG[lang];
+  if (!label) label = L?.riskPanel;
   if (!data) return null;
 
   const {
@@ -65,7 +69,7 @@ export default function RiskPanel({ data, label = "RISK PANEL" }) {
 
       {/* Model Variance */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0" }}>
-        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>Model Variance</span>
+        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>{L?.modelVariance}</span>
         <span style={{ fontWeight: 700, color: C.text }}>
           {typeof model_variance === "number" ? model_variance.toFixed(2) : model_variance}
         </span>
@@ -73,7 +77,7 @@ export default function RiskPanel({ data, label = "RISK PANEL" }) {
 
       {/* Signal Stability */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0" }}>
-        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>Signal Stability</span>
+        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>{L?.signalStability}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontWeight: 700, color: C.text }}>
             {signal_stability}<span style={{ fontSize: 9, color: C.textDim }}>%</span>
@@ -84,13 +88,13 @@ export default function RiskPanel({ data, label = "RISK PANEL" }) {
 
       {/* Market Volatility */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0" }}>
-        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>Market Volatility</span>
+        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>{L?.marketVolatility}</span>
         <span style={{ fontWeight: 700, color: volColor }}>{market_volatility}</span>
       </div>
 
       {/* Drawdown Guard */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "3px 0" }}>
-        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>Drawdown Guard</span>
+        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>{L?.drawdownGuard}</span>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{ fontWeight: 700, color: drawdown_guard === "Active" ? C.up : C.textDim }}>
             {drawdown_guard}

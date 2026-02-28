@@ -5,6 +5,8 @@
  * Pro/Elite tier feature
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   bg: "#0E1117", bgCard: "#131720",
   border: "#1E2530", borderLight: "#252D3A",
@@ -31,7 +33,9 @@ function EdgeBar({ value, maxEdge = 12 }) {
   );
 }
 
-export default function OUScanner({ data, label = "O/U SCANNER" }) {
+export default function OUScanner({ data, label, lang = "en" }) {
+  const L = LANG[lang];
+  const displayLabel = label || L?.ouScanner || "O/U SCANNER";
   if (!data || !Array.isArray(data) || data.length === 0) return null;
 
   // Find the row with the best absolute edge (for highlight)
@@ -54,10 +58,10 @@ export default function OUScanner({ data, label = "O/U SCANNER" }) {
         <span style={{
           fontSize: 9, fontWeight: 700, letterSpacing: 3,
           color: C.accent, fontFamily: "'IBM Plex Mono', monospace",
-        }}>{label}</span>
+        }}>{displayLabel}</span>
         <span style={{
           fontSize: 9, color: C.textMuted, fontFamily: "'IBM Plex Mono', monospace",
-        }}>MULTI-LINE</span>
+        }}>{L?.multiLine || "MULTI-LINE"}</span>
       </div>
 
       {/* Column headers */}
@@ -69,9 +73,9 @@ export default function OUScanner({ data, label = "O/U SCANNER" }) {
         borderBottom: `1px solid ${C.borderLight}`,
         marginBottom: 2,
       }}>
-        <span style={colHead}>LINE</span>
-        <span style={{ ...colHead, textAlign: "center" }}>OVER%</span>
-        <span style={{ ...colHead, textAlign: "right" }}>EDGE</span>
+        <span style={colHead}>{L?.lineLabel || "LINE"}</span>
+        <span style={{ ...colHead, textAlign: "center" }}>{L?.overPct || "OVER%"}</span>
+        <span style={{ ...colHead, textAlign: "right" }}>{L?.edgeLabel || "EDGE"}</span>
         <span style={{ ...colHead, textAlign: "right" }}></span>
       </div>
 

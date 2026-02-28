@@ -101,7 +101,7 @@ export default function ValueBetScanner({ data, lang, L }) {
               fontWeight: 700, letterSpacing: 1.5,
               animation: "valuePulse 2s ease-in-out infinite",
             }}>
-              VALUE
+              {L?.valueLabel || "VALUE"}
             </span>
           )}
         </div>
@@ -123,7 +123,7 @@ export default function ValueBetScanner({ data, lang, L }) {
           <span style={{
             fontSize: 10, fontWeight: 600, letterSpacing: 1.5,
             color: bestSide === "OVER" ? C.accent : C.textDim,
-          }}>OVER {line}</span>
+          }}>{L?.over || "OVER"} {line}</span>
         </div>
         <span style={{
           fontFamily: FONT, fontSize: 13, fontWeight: 700,
@@ -151,7 +151,7 @@ export default function ValueBetScanner({ data, lang, L }) {
           <span style={{
             fontSize: 10, fontWeight: 600, letterSpacing: 1.5,
             color: bestSide === "UNDER" ? C.accent : C.textDim,
-          }}>UNDER {line}</span>
+          }}>{L?.under || "UNDER"} {line}</span>
         </div>
         <span style={{
           fontFamily: FONT, fontSize: 13, fontWeight: 700,
@@ -170,13 +170,13 @@ export default function ValueBetScanner({ data, lang, L }) {
         borderTop: `1px solid ${C.borderLight}`,
         fontSize: 9,
       }}>
-        <span style={{ color: C.textMuted, letterSpacing: 1 }}>BEST {L?.expectedValue || "EV"}</span>
+        <span style={{ color: C.textMuted, letterSpacing: 1 }}>{L?.best || "BEST"} {L?.expectedValue || "EV"}</span>
         <span style={{
           fontWeight: 700,
           color: bestEv > 0 ? C.up : C.textDim,
           fontFamily: FONT,
         }}>
-          {bestSide} {fmtEv(bestEv)}
+          {bestSide === "OVER" ? (L?.over || "OVER") : (L?.under || "UNDER")} {fmtEv(bestEv)}
         </span>
       </div>
 

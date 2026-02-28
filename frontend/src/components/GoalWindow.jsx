@@ -5,6 +5,7 @@
  * Automatically fades in/out with 300ms transition.
  */
 import { useState, useEffect, useRef } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#0E1117",
@@ -48,7 +49,8 @@ function useElapsedTimer(active, initialSec) {
 // ════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════════════
-export default function GoalWindow({ data }) {
+export default function GoalWindow({ data, lang = "en" }) {
+  const L = LANG[lang];
   const [visible, setVisible] = useState(false);
   const [render, setRender] = useState(false);
 
@@ -110,7 +112,7 @@ export default function GoalWindow({ data }) {
           fontFamily: "'IBM Plex Mono', monospace",
           whiteSpace: "nowrap",
         }}>
-          HIGH GOAL WINDOW
+          {L?.highGoalWindow}
         </span>
       </div>
 
@@ -125,19 +127,19 @@ export default function GoalWindow({ data }) {
         whiteSpace: "nowrap",
       }}>
         <span>
-          <span style={{ color: C.textDim, letterSpacing: 1, marginRight: 4 }}>EST</span>
+          <span style={{ color: C.textDim, letterSpacing: 1, marginRight: 4 }}>{L?.estimated}</span>
           {duration}
-          <span style={{ color: C.textDim, marginLeft: 2 }}>min</span>
+          <span style={{ color: C.textDim, marginLeft: 2 }}>{L?.min}</span>
         </span>
         <span style={{ color: C.textMuted }}>|</span>
         <span>
-          <span style={{ color: C.textDim, letterSpacing: 1, marginRight: 4 }}>CONF</span>
+          <span style={{ color: C.textDim, letterSpacing: 1, marginRight: 4 }}>{L?.confidence}</span>
           <span style={{ fontWeight: 700, color: confidence >= 60 ? C.gold : C.text }}>{confidence}</span>
           <span style={{ fontSize: 9, color: C.textDim }}>%</span>
         </span>
         <span style={{ color: C.textMuted }}>|</span>
         <span>
-          <span style={{ color: C.textDim, letterSpacing: 1, marginRight: 4 }}>ACTIVE</span>
+          <span style={{ color: C.textDim, letterSpacing: 1, marginRight: 4 }}>{L?.active}</span>
           <span style={{ fontWeight: 700, color: C.text }}>{elapsed}</span>
         </span>
       </div>

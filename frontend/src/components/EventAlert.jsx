@@ -115,11 +115,11 @@ function ProbSwingContent({ data, t }) {
   if (homeAbs > 15) {
     const sign = delta.home > 0 ? "+" : "";
     // We don't have previous values directly, so show the delta magnitude
-    lines.push({ label: "HOME", delta: delta.home, sign, abs: homeAbs });
+    lines.push({ label: t.home || "HOME", delta: delta.home, sign, abs: homeAbs });
   }
   if (awayAbs > 15) {
     const sign = delta.away > 0 ? "+" : "";
-    lines.push({ label: "AWAY", delta: delta.away, sign, abs: awayAbs });
+    lines.push({ label: t.away || "AWAY", delta: delta.away, sign, abs: awayAbs });
   }
 
   return (

@@ -34,7 +34,7 @@ function getEdgeGlow(edge) {
 // ════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════════════
-export default function EdgeHeatBar({ edge = 0, maxEdge = 15 }) {
+export default function EdgeHeatBar({ edge = 0, maxEdge = 15, L }) {
   const absEdge = Math.abs(edge);
   const pct = Math.min(100, (absEdge / maxEdge) * 100);
   const isNeg = edge < 0;
@@ -63,7 +63,7 @@ export default function EdgeHeatBar({ edge = 0, maxEdge = 15 }) {
         minWidth: 38,
         flexShrink: 0,
       }}>
-        EDGE
+        {L?.edgeLabel || "EDGE"}
       </span>
 
       {/* Bar container */}

@@ -5,6 +5,7 @@
  * Bloomberg terminal style
  */
 import { useState, useEffect, useRef } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#0E1117", bgCard: "#131720",
@@ -37,12 +38,12 @@ function getStateDotColor(state) {
 }
 
 // ── State label ─────────────────────────────────────────────
-function getStateLabel(state) {
+function getStateLabel(state, L) {
   switch (state) {
-    case "monitoring": return "Monitoring";
-    case "evaluating": return "Evaluating";
-    case "recalculating": return "Recalculating";
-    default: return "Monitoring";
+    case "monitoring": return L?.monitoringState;
+    case "evaluating": return L?.evaluatingState;
+    case "recalculating": return L?.recalcState;
+    default: return L?.monitoringState;
   }
 }
 
@@ -75,7 +76,7 @@ function useCountdown(nextEvalSec) {
 }
 
 // ── Animated lambda for recalculating ───────────────────────
-function useAnimatedLambda() {
+function useAnimatedLambda(L) {
   const [frame, setFrame] = useState(0);
   const ref = useRef(null);
 
@@ -87,7 +88,7 @@ function useAnimatedLambda() {
   }, []);
 
   const dots = ".".repeat(frame);
-  return `RECALCULATING \u03BB${dots}`;
+  return `${L?.recalcLambda}${dots}`;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -97,9 +98,11 @@ export default function ModelCycleTimer({
   state = "monitoring",
   nextEvalSec = 0,
   volatility = "Low",
+  lang = "en",
 }) {
+  const L = LANG[lang];
   const countdown = useCountdown(nextEvalSec);
-  const recalcLabel = useAnimatedLambda();
+  const recalcLabel = useAnimatedLambda(L);
   const dotColor = getStateDotColor(state);
   const volColor = getVolColor(volatility);
   const isRecalc = state === "recalculating";
@@ -132,7 +135,7 @@ export default function ModelCycleTimer({
           color: C.accent,
           textTransform: "uppercase",
         }}>
-          MODEL CYCLE
+          {L?.modelCycle}
         </span>
         <div style={{
           display: "flex",
@@ -144,7 +147,7 @@ export default function ModelCycleTimer({
             color: C.textMuted,
             letterSpacing: 1,
           }}>
-            Next Evaluation:
+            {L?.nextEval + ":"}
           </span>
           <span style={{
             fontSize: 11,
@@ -188,7 +191,7 @@ export default function ModelCycleTimer({
                 color: C.textMuted,
                 letterSpacing: 1,
               }}>
-                State:
+                {L?.stateLabel2}
               </span>
               <div style={{
                 width: 5,
@@ -204,7 +207,7 @@ export default function ModelCycleTimer({
                 color: C.text,
                 letterSpacing: 0.5,
               }}>
-                {getStateLabel(state)}
+                {getStateLabel(state, L)}
               </span>
             </div>
 
@@ -218,7 +221,7 @@ export default function ModelCycleTimer({
                 color: C.textMuted,
                 letterSpacing: 1,
               }}>
-                Vol:
+                {L?.volLabel}
               </span>
               <span style={{
                 fontSize: 10,
@@ -235,7 +238,7 @@ export default function ModelCycleTimer({
         {/* Recalculating state also shows volatility on right side */}
         {isRecalc && (
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>Vol:</span>
+            <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>{L?.volLabel}</span>
             <span style={{ fontSize: 10, fontWeight: 700, color: volColor }}>{volatility}</span>
           </div>
         )}

@@ -4,6 +4,8 @@
  * Bloomberg-style event log, newest first
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   border: "#1E2530",
   textDim: "#6B7280",
@@ -23,11 +25,12 @@ const TYPE_STYLE = {
   PENALTY: { icon: "P", color: C.accent, bg: C.accent + "15" },
 };
 
-export default function EventTape({ events = [], maxShow = 5 }) {
+export default function EventTape({ events = [], maxShow = 5, lang = "en" }) {
+  const L = LANG[lang];
   if (!events.length) {
     return (
       <div style={{ padding: "6px 0", fontSize: 9, color: C.textMuted, fontFamily: "mono", letterSpacing: 1 }}>
-        NO EVENTS YET
+        {L?.noEventsYet}
       </div>
     );
   }

@@ -5,6 +5,8 @@
  * Pro tier feature
  */
 
+import { LANG } from "../utils/i18n";
+
 const C = {
   bg: "#0E1117", bgCard: "#131720",
   border: "#1E2530", borderLight: "#252D3A",
@@ -13,7 +15,9 @@ const C = {
   accent: "#F4C430", accentBlue: "#00C8FF",
 };
 
-export default function LineMovement({ data, label = "LINE MOVEMENT" }) {
+export default function LineMovement({ data, label, lang = "en" }) {
+  const L = LANG[lang];
+  if (!label) label = L?.lineMovement;
   if (!data) return null;
 
   const {
@@ -73,7 +77,7 @@ export default function LineMovement({ data, label = "LINE MOVEMENT" }) {
         <span style={{ color: C.textMuted, fontSize: 10, margin: "0 4px" }}>|</span>
 
         {/* Over odds movement */}
-        <span style={{ color: C.textDim, fontSize: 10, fontWeight: 600 }}>Over:</span>
+        <span style={{ color: C.textDim, fontSize: 10, fontWeight: 600 }}>{L?.overLabel}</span>
         <span style={{ color: C.textDim }}>
           {over_odds_prev.toFixed(2)}
         </span>
@@ -88,7 +92,7 @@ export default function LineMovement({ data, label = "LINE MOVEMENT" }) {
 
       {/* Pressure row */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px 0" }}>
-        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>Pressure:</span>
+        <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.2, fontWeight: 600 }}>{L?.pressureLabel}</span>
         <span style={{ fontWeight: 800, color: pressureColor, letterSpacing: 1 }}>
           {pressure}
         </span>

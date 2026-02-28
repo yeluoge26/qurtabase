@@ -203,8 +203,8 @@ export default function QuantTerminal({ matchId = "demo" }) {
     <div style={{ ...sty.root, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <style>{globalCSS}</style>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontFamily: "mono", fontSize: 14, color: C.accent, letterSpacing: 4, marginBottom: 8 }}>AI FOOTBALL QUANT TERMINAL</div>
-        <div style={{ fontFamily: "mono", fontSize: 10, color: C.textMuted }}>{connected ? "Waiting for data..." : "Connecting..."}</div>
+        <div style={{ fontFamily: "mono", fontSize: 14, color: C.accent, letterSpacing: 4, marginBottom: 8 }}>{t.terminalTitle}</div>
+        <div style={{ fontFamily: "mono", fontSize: 10, color: C.textMuted }}>{connected ? t.waitingData : (t.connecting + "...")}</div>
       </div>
     </div>
   );
@@ -246,11 +246,11 @@ export default function QuantTerminal({ matchId = "demo" }) {
             <span style={{
               fontSize: 8, letterSpacing: 2, fontWeight: 600, fontFamily: "mono",
               color: connected ? C.up : C.down,
-            }}>{connected ? "SYSTEM ONLINE" : "OFFLINE"}</span>
+            }}>{connected ? t.systemOnline : t.systemOffline}</span>
           </div>
           {/* Model Version */}
-          <span style={{ fontSize: 8, letterSpacing: 1, color: C.textMuted, fontFamily: "mono" }}>MODEL v2.2</span>
-          <span style={{ fontSize: 9, color: C.accent, letterSpacing: 3, fontWeight: 700 }}>QUANT TERMINAL</span>
+          <span style={{ fontSize: 8, letterSpacing: 1, color: C.textMuted, fontFamily: "mono" }}>{t.modelVersion}</span>
+          <span style={{ fontSize: 9, color: C.accent, letterSpacing: 3, fontWeight: 700 }}>{t.quantTerminal}</span>
           <span style={sty.divider}>|</span>
           <span style={{ color: C.textDim, fontSize: 10 }}>{d.league}</span>
           <span style={sty.divider}>|</span>
@@ -272,17 +272,17 @@ export default function QuantTerminal({ matchId = "demo" }) {
             color: d.meta.dataDelaySec < 30 ? C.down : C.textMuted,
             animation: d.meta.dataDelaySec < 30 ? "delayFlash 1s infinite" : "none",
           }}>
-            DELAY {d.meta.dataDelaySec}s{d.meta.dataDelaySec < 30 ? " !" : ""}
+            {t.delay} {d.meta.dataDelaySec}s{d.meta.dataDelaySec < 30 ? " !" : ""}
           </span>
           <span style={sty.divider}>|</span>
           <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "mono" }}>
-            SRC {d.meta.source.live || "?"}
+            {t.source} {d.meta.source.live || "?"}
           </span>
           <span style={sty.divider}>|</span>
           {/* Alert badges */}
-          {d.quant.volatility > 1.0 && <AlertBadge label="VOL SPIKE" bg="#F4C43030" color="#F4C430" />}
-          {d.quant.goalWindow && /^\d+-\d+$/.test(d.quant.goalWindow) && <AlertBadge label="GOAL WINDOW" bg="#00C85325" color="#00C853" />}
-          {health === "STALE" && <AlertBadge label="DATA STALE" bg="#FF3D0025" color="#FF3D00" />}
+          {d.quant.volatility > 1.0 && <AlertBadge label={t.volSpike} bg="#F4C43030" color="#F4C430" />}
+          {d.quant.goalWindow && /^\d+-\d+$/.test(d.quant.goalWindow) && <AlertBadge label={t.goalWindowBadge} bg="#00C85325" color="#00C853" />}
+          {health === "STALE" && <AlertBadge label={t.dataStale} bg="#FF3D0025" color="#FF3D00" />}
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: healthColor, animation: connected ? "blink 2s infinite" : "none" }} />
           <span style={{ fontSize: 8, color: healthColor, letterSpacing: 2, fontWeight: 700 }}>{health}</span>
           <AISpeakingIndicator
@@ -296,17 +296,17 @@ export default function QuantTerminal({ matchId = "demo" }) {
 
       {/* ═══ DISCLAIMER ═══ */}
       <div style={{ textAlign: "center", padding: "3px 0", fontSize: 8, letterSpacing: 2, color: C.textMuted, background: C.down + "08", borderBottom: `1px solid ${C.border}` }}>
-        {t.disclaimer} &mdash; DATA VISUALIZATION ONLY &mdash; NOT FINANCIAL ADVICE
+        {t.disclaimer} &mdash; {t.disclaimerShort}
       </div>
 
       {/* ═══ REPORT BANNER ═══ */}
-      <ReportBanner report={d.report} />
+      <ReportBanner report={d.report} lang={lang} />
 
       {/* ═══ GOAL WINDOW BANNER ═══ */}
-      <GoalWindow data={d.goalWindow} />
+      <GoalWindow data={d.goalWindow} lang={lang} />
 
       {/* ═══ POST-MATCH SUMMARY ═══ */}
-      <PostMatchSummary data={d.postMatch} t={t} />
+      <PostMatchSummary data={d.postMatch} t={t} lang={lang} />
 
       {/* ═══ MAIN GRID ═══ */}
       <div style={sty.mainGrid}>
@@ -336,7 +336,7 @@ export default function QuantTerminal({ matchId = "demo" }) {
             {/* v1.1 Market + Edge (Pro) */}
             {d.market && (
               <div style={{ marginTop: 8, paddingTop: 6, borderTop: `1px solid ${C.border}` }}>
-                <MarketEdge market={d.market} />
+                <MarketEdge market={d.market} lang={lang} />
               </div>
             )}
 
@@ -348,13 +348,13 @@ export default function QuantTerminal({ matchId = "demo" }) {
 
           {/* v1.2 Total Goals O/U Engine */}
           {d.totalGoals && (
-            <TotalGoalsPanel totalGoals={d.totalGoals} quant={d.quant} />
+            <TotalGoalsPanel totalGoals={d.totalGoals} quant={d.quant} lang={lang} />
           )}
 
           {/* v2.0 Edge Heat Bar */}
           {d.totalGoals && (
             <div style={{ padding: "4px 14px" }}>
-              <EdgeHeatBar edge={d.totalGoals.edge || 0} />
+              <EdgeHeatBar edge={d.totalGoals.edge || 0} L={t} />
             </div>
           )}
 
@@ -370,6 +370,7 @@ export default function QuantTerminal({ matchId = "demo" }) {
                 }
                 cooldownSec={d.totalGoals.cooldown_remaining_sec || 0}
                 cooldownTotal={180}
+                lang={lang}
               />
             </div>
           )}
@@ -381,13 +382,14 @@ export default function QuantTerminal({ matchId = "demo" }) {
                 data={d.signalControl}
                 onConfirm={handleSignalConfirm}
                 onReject={handleSignalReject}
+                lang={lang}
               />
             </div>
           )}
 
           {/* v2.0 O/U Scanner (multi-line) */}
           {d.totalGoals?.scanner && (
-            <OUScanner data={d.totalGoals.scanner} label={t.ouScanner} />
+            <OUScanner data={d.totalGoals.scanner} label={t.ouScanner} lang={lang} />
           )}
 
           {/* Phase 7: Value Bet Scanner (EV) */}
@@ -397,24 +399,24 @@ export default function QuantTerminal({ matchId = "demo" }) {
 
           {/* Line Movement */}
           {d.lineMovement && (
-            <LineMovement data={d.lineMovement} label={t.lineMovement} />
+            <LineMovement data={d.lineMovement} label={t.lineMovement} lang={lang} />
           )}
 
           {/* Risk Panel */}
           {d.risk && (
-            <RiskPanel data={d.risk} label={t.riskPanel} />
+            <RiskPanel data={d.risk} label={t.riskPanel} lang={lang} />
           )}
 
           {/* v1.1 Explain (Pro) */}
           {d.explain && d.explain.topFactors?.length > 0 && (
             <div style={sty.section}>
-              <ExplainPanel explain={d.explain} />
+              <ExplainPanel explain={d.explain} lang={lang} />
             </div>
           )}
 
           {/* Quant */}
           <div style={sty.section}>
-            <SectionHead label={t.quantLabel} right="REFRESH 2s" />
+            <SectionHead label={t.quantLabel} right={t.refresh} />
             <QuantRow label={t.pressure} value={d.quant.pressure} tier="pro" />
             <QuantRow label={t.momentum} value={d.quant.momentum > 0 ? `+${d.quant.momentum}` : d.quant.momentum} tier="pro" />
             <QuantRow label={t.volatility} value={d.quant.volatility} tier="pro" />
@@ -427,12 +429,12 @@ export default function QuantTerminal({ matchId = "demo" }) {
             {d.uncertainty && (
               <>
                 <div style={{ marginTop: 6, paddingTop: 4, borderTop: `1px solid ${C.borderLight}` }}>
-                  <QuantRow label="CI95 HOME" value={`${d.uncertainty.ci95Home[0]}–${d.uncertainty.ci95Home[1]}`} unit="%" tier="elite" />
-                  <QuantRow label="SHARPNESS" value={d.uncertainty.sharpness} tier="elite" />
+                  <QuantRow label={t.ci95Home} value={`${d.uncertainty.ci95Home[0]}–${d.uncertainty.ci95Home[1]}`} unit="%" tier="elite" />
+                  <QuantRow label={t.sharpness} value={d.uncertainty.sharpness} tier="elite" />
                   {d.uncertainty.brierRolling != null && (
-                    <QuantRow label="BRIER 20m" value={d.uncertainty.brierRolling} tier="elite" />
+                    <QuantRow label={t.brier20} value={d.uncertainty.brierRolling} tier="elite" />
                   )}
-                  <QuantRow label="MC RUNS" value={d.uncertainty.mcRuns?.toLocaleString()} tier="elite" />
+                  <QuantRow label={t.mcRuns} value={d.uncertainty.mcRuns?.toLocaleString()} tier="elite" />
                 </div>
               </>
             )}
@@ -447,7 +449,7 @@ export default function QuantTerminal({ matchId = "demo" }) {
               { k: "prob", l: t.probTrend },
               { k: "pressure", l: t.pressureTrend },
               { k: "xg", l: t.xgTrend },
-              { k: "lambda", l: t.lambdaTrend || "\u03BB TOTAL" },
+              { k: "lambda", l: t.lambdaTrend },
             ]} active={trendTab} onChange={setTrendTab} />
 
             {trendTab === "prob" && (
@@ -514,7 +516,7 @@ export default function QuantTerminal({ matchId = "demo" }) {
             {trendTab === "lambda" && (
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                  <span style={{ fontSize: 8, color: C.textMuted, letterSpacing: 1 }}>{"\u03BB"}_TOTAL (LIVE)</span>
+                  <span style={{ fontSize: 8, color: C.textMuted, letterSpacing: 1 }}>{"\u03BB"} {t.lambdaTrend} ({t.live})</span>
                   <span style={{ fontSize: 12, fontFamily: "mono", color: C.accent, fontWeight: 700 }}>
                     {d.totalGoals?.lambda_live?.toFixed(2) || "0.00"}
                   </span>
@@ -523,15 +525,15 @@ export default function QuantTerminal({ matchId = "demo" }) {
                 {d.totalGoals && (
                   <div style={{ marginTop: 8, padding: "6px 0", borderTop: `1px solid ${C.border}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 9, color: C.textMuted }}>PRE {"\u03BB"}</span>
+                      <span style={{ fontSize: 9, color: C.textMuted }}>{t.preLambda}</span>
                       <span style={{ fontFamily: "mono", fontSize: 11, color: C.textDim }}>{d.totalGoals.lambda_pre?.toFixed(2)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                      <span style={{ fontSize: 9, color: C.textMuted }}>MARKET {"\u03BB"}</span>
+                      <span style={{ fontSize: 9, color: C.textMuted }}>{t.market} {"\u03BB"}</span>
                       <span style={{ fontFamily: "mono", fontSize: 11, color: C.textDim }}>{d.totalGoals.lambda_market?.toFixed(2)}</span>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 9, color: C.textMuted }}>LINE</span>
+                      <span style={{ fontSize: 9, color: C.textMuted }}>{t.line}</span>
                       <span style={{ fontFamily: "mono", fontSize: 11, fontWeight: 700, color: C.text }}>{d.totalGoals.line?.toFixed(1)}</span>
                     </div>
                   </div>
@@ -544,10 +546,10 @@ export default function QuantTerminal({ matchId = "demo" }) {
         {/* ▌ RIGHT — Stats + Events */}
         <div style={sty.panel}>
           <div style={sty.section}>
-            <SectionHead label={t.statsLabel} right="REFRESH 2s" />
+            <SectionHead label={t.statsLabel} right={t.refresh} />
             <div style={{ display: "flex", alignItems: "center", padding: "4px 0", borderBottom: `2px solid ${C.borderLight}` }}>
               <span style={{ flex: 1, textAlign: "right", fontSize: 9, color: C.accent, fontWeight: 700, letterSpacing: 1 }}>{d.home.code}</span>
-              <span style={{ width: 130, textAlign: "center", fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>STAT</span>
+              <span style={{ width: 130, textAlign: "center", fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>{t.stat}</span>
               <span style={{ flex: 1, textAlign: "left", fontSize: 9, color: C.accentBlue, fontWeight: 700, letterSpacing: 1 }}>{d.away.code}</span>
             </div>
             <div style={{ marginTop: 4 }}>
@@ -573,8 +575,8 @@ export default function QuantTerminal({ matchId = "demo" }) {
 
           {/* v1.1 Event Tape */}
           <div style={sty.section}>
-            <SectionHead label="EVENT TAPE" right={`LAST ${Math.min(5, d.events.length)}`} />
-            <EventTape events={d.events} maxShow={5} />
+            <SectionHead label={t.eventTape} right={`${t.lastEvents} ${Math.min(5, d.events.length)}`} />
+            <EventTape events={d.events} maxShow={5} lang={lang} />
           </div>
 
           {/* v2.0 Model Cycle Timer */}
@@ -583,12 +585,13 @@ export default function QuantTerminal({ matchId = "demo" }) {
               state={d.totalGoals?.in_cooldown ? "recalculating" : "monitoring"}
               nextEvalSec={d.totalGoals?.cooldown_remaining_sec || 30}
               volatility={d.risk?.market_volatility || "Medium"}
+              lang={lang}
             />
           </div>
 
           {/* Track Record / Performance */}
           {d.performance && (
-            <TrackRecord data={d.performance} label={t.todayPerformance} />
+            <TrackRecord data={d.performance} label={t.todayPerformance} lang={lang} />
           )}
 
           {/* Phase 7: Score Matrix (Poisson) */}
@@ -614,9 +617,9 @@ export default function QuantTerminal({ matchId = "demo" }) {
 
       {/* ═══ FOOTER ═══ */}
       <div style={sty.footer}>
-        <span style={{ color: C.textMuted }}>AI FOOTBALL QUANT TERMINAL v2.0 &copy; 2026</span>
+        <span style={{ color: C.textMuted }}>{t.copyright}</span>
         <span style={{ color: C.textMuted }}>
-          SEQ {d.meta.seq} | REFRESH 2s | MODEL XGB+POISSON | {d.minute}'/90'
+          SEQ {d.meta.seq} | {t.refresh} | {t.footerModel} | {d.minute}'/90'
         </span>
       </div>
 
@@ -629,7 +632,7 @@ export default function QuantTerminal({ matchId = "demo" }) {
         fontSize: 9, fontFamily: "mono", letterSpacing: 2, fontWeight: 600,
         color: C.textMuted, opacity: 0.35, lineHeight: 1,
       }}>
-        DATA VISUALIZATION ONLY — NOT FINANCIAL ADVICE
+        {t.disclaimerShort}
       </div>
     </div>
   );

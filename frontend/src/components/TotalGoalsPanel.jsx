@@ -5,6 +5,7 @@
  * Pro/Elite tier feature
  */
 import { useState, useEffect, useRef } from "react";
+import { LANG } from "../utils/i18n";
 
 const C = {
   bg: "#0E1117", bgCard: "#131720",
@@ -68,7 +69,8 @@ function useCooldown(inCooldown, remainingSec) {
 // ════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ════════════════════════════════════════════════════════════
-export default function TotalGoalsPanel({ totalGoals, quant }) {
+export default function TotalGoalsPanel({ totalGoals, quant, lang = "en" }) {
+  const L = LANG[lang];
   if (!totalGoals) return null;
 
   const {
@@ -106,8 +108,8 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
     <div style={{ padding: "12px 14px", borderBottom: `1px solid ${C.border}` }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, paddingBottom: 6, borderBottom: `1px solid ${C.borderLight}` }}>
-        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, fontFamily: "'IBM Plex Mono', monospace" }}>TOTAL GOALS ENGINE</span>
-        <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>O/U TRADING</span>
+        <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: 3, color: C.accent, fontFamily: "'IBM Plex Mono', monospace" }}>{L?.totalGoalsEngine || "TOTAL GOALS ENGINE"}</span>
+        <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>{L?.ouTrading || "O/U TRADING"}</span>
       </div>
 
       {/* PRE vs LIVE λ comparison strip */}
@@ -125,17 +127,17 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
             background: C.bg, border: `1px solid ${C.borderLight}`, borderRadius: 2,
           }}>
             <span style={{ ...s, color: C.textDim }}>
-              PRE {"\u03BB"} <span style={{ color: C.accent, fontWeight: 700 }}>{lambda_pre.toFixed(2)}</span>
+              {L?.preLambda || "PRE \u03BB"} <span style={{ color: C.accent, fontWeight: 700 }}>{lambda_pre.toFixed(2)}</span>
               <span style={{ color: C.textMuted, margin: "0 2px" }}>{"\u2192"}</span>
-              LIVE {"\u03BB"} <span style={{ color: C.accent, fontWeight: 700 }}>{lambda_live.toFixed(2)}</span>
+              {L?.liveLambda || "LIVE \u03BB"} <span style={{ color: C.accent, fontWeight: 700 }}>{lambda_live.toFixed(2)}</span>
               <span style={{ color: lambdaColor, fontWeight: 700, marginLeft: 3 }}>
                 {"\u0394"}{lambdaPct > 0 ? "+" : ""}{lambdaPct.toFixed(1)}%
               </span>
             </span>
             <span style={{ ...s, color: C.textMuted, margin: "0 6px" }}>|</span>
             <span style={{ ...s, color: C.textDim }}>
-              TEMPO <span style={{ color: C.accent, fontWeight: 700 }}>{tempo_index}</span>
-              <span style={{ color: C.textMuted, margin: "0 2px" }}>(EXP 50)</span>
+              {L?.tempoLabel || "TEMPO"} <span style={{ color: C.accent, fontWeight: 700 }}>{tempo_index}</span>
+              <span style={{ color: C.textMuted, margin: "0 2px" }}>{L?.expLabel || "(EXP 50)"}</span>
               <span style={{ color: tempoColor, fontWeight: 700, marginLeft: 3 }}>
                 {"\u0394"}{tempoPct > 0 ? "+" : ""}{Math.round(tempoPct)}%
               </span>
@@ -146,16 +148,16 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
 
       {/* Lambda values */}
       <div style={{ marginBottom: 4 }}>
-        <LambdaRow label="Pre \u03BB_total" value={lambda_pre} />
-        <LambdaRow label="Live \u03BB_total" value={lambda_live} delta={lambdaDelta} />
-        <LambdaRow label="Market \u03BB" value={lambda_market} />
+        <LambdaRow label={`${L?.preLambda || "PRE \u03BB"} total`} value={lambda_pre} />
+        <LambdaRow label={`${L?.liveLambda || "LIVE \u03BB"} total`} value={lambda_live} delta={lambdaDelta} />
+        <LambdaRow label={`${L?.market || "Market"} \u03BB`} value={lambda_market} />
       </div>
 
       <Divider />
 
       {/* LINE display -- prominent */}
       <div style={{ textAlign: "center", padding: "6px 0" }}>
-        <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 2, marginBottom: 4 }}>LINE</div>
+        <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 2, marginBottom: 4 }}>{L?.lineLabel || "LINE"}</div>
         <div style={{ fontSize: 30, fontWeight: 800, fontFamily: "'IBM Plex Mono', monospace", color: C.text, letterSpacing: -1, lineHeight: 1 }}>
           {line.toFixed(1)}
         </div>
@@ -165,10 +167,10 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
 
       {/* Probability comparison */}
       <div style={{ marginBottom: 4 }}>
-        <ProbLine label="Model Prob" value={model_prob_over} />
-        <ProbLine label="Market Prob" value={market_prob_over} />
+        <ProbLine label={L?.modelProb || "Model Prob"} value={model_prob_over} />
+        <ProbLine label={L?.marketProb || "Market Prob"} value={market_prob_over} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "4px 0" }}>
-          <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.5, fontWeight: 600 }}>Edge</span>
+          <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.5, fontWeight: 600 }}>{L?.edge || "Edge"}</span>
           <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 14, fontWeight: 800, color: edgeColor }}>
             {edge > 0 ? "+" : ""}{edge.toFixed(1)}
             <span style={{ fontSize: 10, color: C.textDim }}>%</span>
@@ -182,14 +184,14 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
       {totalGoals.confidence != null && (
         <div style={{ marginBottom: 4 }}>
           <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-            <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.5, fontWeight: 600 }}>Confidence</span>
+            <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.5, fontWeight: 600 }}>{L?.confidence || "Confidence"}</span>
             <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 13, fontWeight: 700, color: C.text }}>
               {totalGoals.confidence}<span style={{ fontSize: 10, color: C.textDim }}>%</span>
             </span>
           </div>
           {totalGoals.ci95 && (
             <div style={{ display: "flex", justifyContent: "space-between", padding: "3px 0" }}>
-              <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.5, fontWeight: 600 }}>CI95</span>
+              <span style={{ fontSize: 10, color: C.textDim, letterSpacing: 1.5, fontWeight: 600 }}>{L?.ci95 || "CI95"}</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: C.textDim }}>
                 {totalGoals.ci95[0].toFixed(1)}% &ndash; {totalGoals.ci95[1].toFixed(1)}%
               </span>
@@ -208,7 +210,7 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
         border: `1px solid ${signalBorder}`,
         borderRadius: 2,
       }}>
-        <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 2, marginBottom: 4 }}>SIGNAL</div>
+        <div style={{ fontSize: 9, color: C.textMuted, letterSpacing: 2, marginBottom: 4 }}>{L?.signal || "SIGNAL"}</div>
         <div style={{
           fontSize: 14, fontWeight: 800, fontFamily: "'IBM Plex Mono', monospace",
           color: signalText, letterSpacing: 2,
@@ -233,29 +235,29 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
           textAlign: "center", padding: "4px 0", fontSize: 10, fontWeight: 600,
           fontFamily: "'IBM Plex Mono', monospace", color: C.textMuted, letterSpacing: 2,
         }}>
-          NEXT EVAL IN {cooldown.display}
+          {L?.nextEvalIn || "NEXT EVAL IN"} {cooldown.display}
         </div>
       )}
 
       <Divider />
 
       {/* Micro bars: Tempo, Pressure, Volatility */}
-      <MicroBar label="TEMPO INDEX" value={tempo_index} max={100} color={C.accentBlue} />
-      <MicroBar label="PRESSURE INDEX" value={pressure} max={100} color={C.up} />
-      <MicroBar label="VOLATILITY" value={volatility} max={2} color={C.accent} />
+      <MicroBar label={L?.tempoIndex || "TEMPO INDEX"} value={tempo_index} max={100} color={C.accentBlue} />
+      <MicroBar label={L?.pressureIndex || "PRESSURE INDEX"} value={pressure} max={100} color={C.up} />
+      <MicroBar label={L?.volatility || "VOLATILITY"} value={volatility} max={2} color={C.accent} />
 
       {/* Game state factors */}
       {(game_state_factor !== 1.0 || red_card_factor !== 1.0) && (
         <div style={{ marginTop: 6, paddingTop: 4, borderTop: `1px solid ${C.borderLight}` }}>
           {game_state_factor !== 1.0 && (
             <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
-              <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>GAME STATE FACTOR</span>
+              <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 1 }}>{L?.gameStateFactor || "GAME STATE FACTOR"}</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: C.textDim }}>{game_state_factor.toFixed(2)}</span>
             </div>
           )}
           {red_card_factor !== 1.0 && (
             <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
-              <span style={{ fontSize: 9, color: C.down, letterSpacing: 1 }}>RED CARD FACTOR</span>
+              <span style={{ fontSize: 9, color: C.down, letterSpacing: 1 }}>{L?.redCardFactor || "RED CARD FACTOR"}</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 10, color: C.down }}>{red_card_factor.toFixed(2)}</span>
             </div>
           )}
