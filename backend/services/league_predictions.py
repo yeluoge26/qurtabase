@@ -102,6 +102,48 @@ class LeaguePredictionService:
     def last_refresh(self) -> float:
         return self._last_refresh
 
+    def _pick_fixture(self, fixtures: list) -> tuple:
+        """Pick best fixture from a list: upcoming first, then recent finished.
+        Returns (fixture_dict, status_label) or (None, None)."""
+        if not fixtures:
+            return None, None
+        upcoming = [f for f in fixtures
+                    if f.get("event_status", "") in ("", "NS", "Not Started")]
+        if upcoming:
+            return upcoming[0], "upcoming"
+        finished = [f for f in fixtures
+                    if f.get("event_status", "") in ("Finished", "After Pen.", "After ET")]
+        if finished:
+            return finished[-1], "recent"
+        return fixtures[-1], "recent"
+
+    def _fixture_to_prediction(self, fixture: dict, league_name: str,
+                                league_id: str, status_label: str,
+                                odds_events: list = None) -> dict:
+        """Run PreMatchEngine on a fixture and return prediction dict."""
+        home = fixture.get("event_home_team", "Home")
+        away = fixture.get("event_away_team", "Away")
+        home_elo = get_elo(home)
+        away_elo = get_elo(away)
+        match_odds = _find_odds(home, odds_events) if odds_events else None
+
+        config = {"home_elo": home_elo, "away_elo": away_elo, "league": league_name}
+        prediction = self.prematch.compute(config, match_odds)
+
+        return {
+            "league": league_name,
+            "league_id": league_id,
+            "home": home,
+            "away": away,
+            "date": fixture.get("event_date", ""),
+            "time": fixture.get("event_time", ""),
+            "round": fixture.get("league_round", ""),
+            "match_status": status_label,
+            "score": fixture.get("event_final_result", ""),
+            "country": fixture.get("country_name", ""),
+            **prediction,
+        }
+
     async def refresh(self):
         """Fetch latest fixture per league, run predictions, update cache."""
         if self._refreshing:
@@ -112,7 +154,7 @@ class LeaguePredictionService:
             end = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
             yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-            # Batch-fetch odds for all leagues
+            # Batch-fetch odds for configured leagues
             all_odds: dict[str, list] = {}
             if settings.has_odds:
                 for league_name, meta in LEAGUES.items():
@@ -124,69 +166,55 @@ class LeaguePredictionService:
                         pass
 
             results = {}
+
+            # 1) Try configured major leagues first
             for league_name, meta in LEAGUES.items():
                 try:
-                    fixture = None
-                    status_label = "upcoming"
-
-                    # Try upcoming first (today -> +7d)
                     fixtures = await self.allsports.fetch_fixtures_by_date(
                         today, end, meta["id"]
                     )
-                    upcoming = [f for f in (fixtures or [])
-                                if f.get("event_status", "") in ("", "NS", "Not Started")]
+                    fixture, status = self._pick_fixture(fixtures)
 
-                    if upcoming:
-                        fixture = upcoming[0]
-                        status_label = "upcoming"
-                    elif fixtures:
-                        # Take most recently finished
-                        finished = [f for f in fixtures
-                                    if f.get("event_status", "") in ("Finished", "After Pen.", "After ET")]
-                        fixture = finished[-1] if finished else fixtures[-1]
-                        status_label = "recent"
-
-                    # Fallback: check yesterday
                     if not fixture:
                         fixtures = await self.allsports.fetch_fixtures_by_date(
                             yesterday, today, meta["id"]
                         )
-                        if fixtures:
-                            fixture = fixtures[-1]
-                            status_label = "recent"
+                        fixture, status = self._pick_fixture(fixtures)
 
-                    if not fixture:
-                        continue
-
-                    home = fixture.get("event_home_team", "Home")
-                    away = fixture.get("event_away_team", "Away")
-                    home_elo = get_elo(home)
-                    away_elo = get_elo(away)
-
-                    match_odds = _find_odds(home, all_odds.get(league_name, []))
-
-                    config = {
-                        "home_elo": home_elo,
-                        "away_elo": away_elo,
-                        "league": league_name,
-                    }
-                    prediction = self.prematch.compute(config, match_odds)
-
-                    results[league_name] = {
-                        "league": league_name,
-                        "league_id": meta["id"],
-                        "home": home,
-                        "away": away,
-                        "date": fixture.get("event_date", ""),
-                        "time": fixture.get("event_time", ""),
-                        "round": fixture.get("league_round", ""),
-                        "match_status": status_label,
-                        "score": fixture.get("event_final_result", ""),
-                        "country": fixture.get("country_name", ""),
-                        **prediction,
-                    }
+                    if fixture:
+                        results[league_name] = self._fixture_to_prediction(
+                            fixture, league_name, meta["id"], status,
+                            all_odds.get(league_name)
+                        )
                 except Exception as e:
                     print(f"  [LeaguePredictions] {league_name} error: {e}")
+
+            # 2) Auto-discover: if configured leagues returned nothing,
+            #    fetch all available fixtures (works on free/limited API plans)
+            if not results:
+                try:
+                    all_fixtures = await self.allsports.fetch_fixtures_by_date(today, end)
+                    if not all_fixtures:
+                        all_fixtures = await self.allsports.fetch_fixtures_by_date(yesterday, today)
+
+                    if all_fixtures:
+                        # Group by league
+                        by_league: dict[str, list] = {}
+                        for f in all_fixtures:
+                            ln = f.get("league_name", "Unknown")
+                            if ln not in by_league:
+                                by_league[ln] = []
+                            by_league[ln].append(f)
+
+                        for ln, league_fixtures in by_league.items():
+                            fixture, status = self._pick_fixture(league_fixtures)
+                            if fixture:
+                                lid = str(fixture.get("league_key", ""))
+                                results[ln] = self._fixture_to_prediction(
+                                    fixture, ln, lid, status
+                                )
+                except Exception as e:
+                    print(f"  [LeaguePredictions] auto-discover error: {e}")
 
             self._cache = results
             self._last_refresh = time.time()
