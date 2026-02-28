@@ -39,12 +39,24 @@ from services.goal_window_engine import GoalWindowEngine
 from services.risk_engine import RiskEngine
 from services.post_match_engine import PostMatchEngine
 from services.performance_tracker import PerformanceTracker
+from services.history_tracker import HistoryTracker
+from services.prematch_engine import PreMatchEngine
 from services.tts_engine import TTSEngine
 try:
     from services.broadcast_engine import BroadcastEngine
 except ImportError:
     BroadcastEngine = None
 from store.match_state import MatchStateStore
+import json as _json
+import os as _os
+
+# Load backtest results (if available)
+_backtest_path = _os.path.join(_os.path.dirname(__file__), "backtest_results.json")
+try:
+    with open(_backtest_path) as _f:
+        _backtest_data = _json.load(_f)
+except (FileNotFoundError, _json.JSONDecodeError):
+    _backtest_data = None
 
 app = FastAPI(title="Football Quant Terminal API", version="1.1.0")
 app.add_middleware(
@@ -71,6 +83,8 @@ goal_window_engine = GoalWindowEngine()
 risk_engine = RiskEngine()
 post_match_engine = PostMatchEngine()
 performance_tracker = PerformanceTracker()
+history_tracker = HistoryTracker()
+prematch_engine = PreMatchEngine()
 tts_engine = TTSEngine()
 broadcast_engine = BroadcastEngine() if BroadcastEngine else None
 state_store = MatchStateStore()
@@ -78,7 +92,98 @@ state_store = MatchStateStore()
 # Managed matches (admin-controlled)
 managed_matches: dict[str, dict] = {}
 
+# Track initial predictions per match for auto-recording
+_match_predictions: dict[str, dict] = {}
+_match_recorded: set = set()  # avoid duplicate recording
+
 predictor = None
+
+
+def _auto_record_prediction(match_id: str, prob: dict, confidence: float,
+                             minute: int, score: list, config: dict,
+                             total_goals: dict = None):
+    """Auto-record initial prediction & final result for HistoryTracker."""
+    # Store initial prediction (first tick, minute <= 2)
+    if match_id not in _match_predictions and minute <= 2:
+        # Determine predicted 1X2
+        if prob["home"] > prob["draw"] and prob["home"] > prob["away"]:
+            pred_1x2 = "HOME"
+        elif prob["away"] > prob["home"] and prob["away"] > prob["draw"]:
+            pred_1x2 = "AWAY"
+        else:
+            pred_1x2 = "DRAW"
+
+        # Determine predicted O/U
+        pred_ou = "OVER"
+        ou_line = 2.5
+        if total_goals:
+            pred_ou = total_goals.get("signal", "OVER")
+            if pred_ou not in ("OVER", "UNDER"):
+                pred_ou = "OVER" if total_goals.get("model_prob_over", 50) > 50 else "UNDER"
+            ou_line = total_goals.get("line", 2.5)
+
+        _match_predictions[match_id] = {
+            "predicted_1x2": pred_1x2,
+            "predicted_ou": pred_ou,
+            "ou_line": ou_line,
+            "confidence": confidence,
+            "predicted_prob": max(prob["home"], prob["draw"], prob["away"]),
+            "pre_lambda": total_goals.get("lambda_pre", 0) if total_goals else 0,
+            "home": config.get("home_name", "Home"),
+            "away": config.get("away_name", "Away"),
+            "home_cn": config.get("home_name_cn", ""),
+            "away_cn": config.get("away_name_cn", ""),
+            "league": config.get("league", ""),
+        }
+
+    # Record when match ends (minute >= 90)
+    if match_id not in _match_recorded and minute >= 90 and match_id in _match_predictions:
+        pred = _match_predictions[match_id]
+        h_goals, a_goals = score[0], score[1]
+        actual_goals = h_goals + a_goals
+
+        # Determine actual 1X2
+        if h_goals > a_goals:
+            actual_1x2 = "HOME"
+        elif a_goals > h_goals:
+            actual_1x2 = "AWAY"
+        else:
+            actual_1x2 = "DRAW"
+
+        ou_correct = (pred["predicted_ou"] == "OVER" and actual_goals > pred["ou_line"]) or \
+                     (pred["predicted_ou"] == "UNDER" and actual_goals < pred["ou_line"])
+
+        # Brier score (simplified: for the predicted outcome)
+        p_predicted = pred["predicted_prob"] / 100.0
+        brier = round((1 - p_predicted) ** 2, 3)
+
+        history_tracker.record_match({
+            "match_id": match_id,
+            "league": pred["league"],
+            "home": pred["home"],
+            "away": pred["away"],
+            "home_cn": pred["home_cn"],
+            "away_cn": pred["away_cn"],
+            "home_short": pred["home"][:3].upper(),
+            "away_short": pred["away"][:3].upper(),
+            "date": time.strftime("%Y-%m-%d"),
+            "predicted_1x2": pred["predicted_1x2"],
+            "actual_result": actual_1x2,
+            "correct": pred["predicted_1x2"] == actual_1x2,
+            "predicted_ou": pred["predicted_ou"],
+            "ou_line": pred["ou_line"],
+            "actual_goals": actual_goals,
+            "ou_correct": ou_correct,
+            "confidence": pred["confidence"],
+            "predicted_prob": pred["predicted_prob"],
+            "pre_lambda": pred["pre_lambda"],
+            "brier_score": brier,
+        })
+        _match_recorded.add(match_id)
+        print(f"  [HistoryTracker] Recorded: {pred['home']} vs {pred['away']} | "
+              f"Pred: {pred['predicted_1x2']} | Actual: {actual_1x2} | "
+              f"{'✓' if pred['predicted_1x2'] == actual_1x2 else '✗'}")
+
 
 # ── Broadcast State ──────────────────────────────────────────
 broadcast_state = {
@@ -896,7 +1001,20 @@ class DemoSimulator:
             "signal_control": sc,
             "performance": performance_tracker.get_summary(),
             "post_match": post_match,
+            "prediction_history": history_tracker.get_summary(),
+            "pre_match_rec": prematch_engine.compute({
+                "home_elo": 1650, "away_elo": 1580, "league": "EPL",
+            }) if self.minute == 0 else prematch_engine.inactive(),
+            "model_stats": _backtest_data,
         }
+
+        # ── Auto-record prediction result ──
+        _auto_record_prediction(
+            "demo", prob, confidence, self.minute, self.score,
+            {"home_name": "Arsenal", "away_name": "Chelsea",
+             "home_name_cn": "阿森纳", "away_name_cn": "切尔西", "league": "EPL"},
+            total_goals,
+        )
 
         # ── Broadcast (computed after full payload is built) ──
         try:
@@ -1177,7 +1295,17 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         ),
                         "performance": performance_tracker.get_summary(),
                         "post_match": post_match,
+                        "prediction_history": history_tracker.get_summary(),
+                        "pre_match_rec": prematch_engine.compute(config) if minute == 0 else prematch_engine.inactive(),
+                        "model_stats": _backtest_data,
                     }
+
+                    # ── Auto-record prediction result (live mode) ──
+                    _auto_record_prediction(
+                        match_id, prob, quant_data.get("confidence", 75),
+                        minute, [live_state["home_goals"], live_state["away_goals"]],
+                        config, total_goals,
+                    )
 
                     # ── Broadcast (live mode) ──
                     try:
@@ -1238,8 +1366,9 @@ async def startup():
         "active": True, "kickoff": "", "status": "demo",
         "live_enabled": False,
     }
-    # Seed demo performance data
+    # Seed demo data
     performance_tracker.seed_demo_data()
+    history_tracker.seed_demo_data()
 
     print("=" * 50)
     print("  AI Football Quant Terminal v2.3 — Backend")

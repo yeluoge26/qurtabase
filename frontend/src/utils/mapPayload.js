@@ -139,6 +139,15 @@ export function mapPayload(raw) {
 
     // Broadcast (AI Voice Commentary)
     broadcast: mapBroadcast(raw.broadcast),
+
+    // Prediction History (historical accuracy)
+    predictionHistory: mapPredictionHistory(raw.prediction_history),
+
+    // Pre-Match Recommendation
+    preMatchRec: mapPreMatchRec(raw.pre_match_rec),
+
+    // Model Stats (backtest results)
+    modelStats: mapModelStats(raw.model_stats),
   };
 }
 
@@ -286,6 +295,72 @@ function mapScoreMatrix(sm) {
     top3: sm.top3 || [],
     homeLambda: sm.home_lambda ?? 0,
     awayLambda: sm.away_lambda ?? 0,
+  };
+}
+
+function mapPredictionHistory(ph) {
+  if (!ph) return null;
+  return {
+    totalMatches: ph.total_matches ?? 0,
+    correct1x2: ph.correct_1x2 ?? 0,
+    accuracy1x2Pct: ph.accuracy_1x2_pct ?? 0,
+    correctOu: ph.correct_ou ?? 0,
+    accuracyOuPct: ph.accuracy_ou_pct ?? 0,
+    avgConfidence: ph.avg_confidence ?? 0,
+    avgBrier: ph.avg_brier ?? 0,
+    streak: ph.streak ?? 0,
+    byConfidence: ph.by_confidence ?? {},
+    recent5: (ph.recent_5 || []).map(r => ({
+      match: r.match || "",
+      correct: r.correct ?? false,
+      type: r.type || "1X2",
+    })),
+  };
+}
+
+function mapPreMatchRec(pm) {
+  if (!pm) return null;
+  return {
+    active: pm.active ?? false,
+    recommendation1x2: pm.recommendation_1x2 || "",
+    probabilities: pm.probabilities ?? { home: 0, draw: 0, away: 0 },
+    ouRecommendation: pm.ou_recommendation || "",
+    ouLine: pm.ou_line ?? 2.5,
+    probOver: pm.prob_over ?? 0,
+    probUnder: pm.prob_under ?? 0,
+    lambdaTotal: pm.lambda_total ?? 0,
+    confidence: pm.confidence ?? 0,
+    keyFactors: (pm.key_factors || []).map(f => ({
+      factor: f.factor || "",
+      team: f.team || "",
+      value: f.value || "",
+      direction: f.direction || "neutral",
+    })),
+    source: pm.source || "ELO",
+  };
+}
+
+function mapModelStats(ms) {
+  if (!ms) return null;
+  return {
+    total: ms.total ?? 0,
+    testPeriod: ms.test_period || "",
+    accuracy1x2: ms.accuracy_1x2 ?? 0,
+    accuracyOu: ms.accuracy_ou ?? 0,
+    meanBrier: ms.mean_brier ?? 0,
+    avgConfidence: ms.avg_confidence ?? 0,
+    byLeague: ms.by_league ?? {},
+    byConfidence: ms.by_confidence ?? {},
+    roi: ms.roi ? {
+      bets: ms.roi.bets ?? 0,
+      staked: ms.roi.staked ?? 0,
+      returned: ms.roi.returned ?? 0,
+      roiPct: ms.roi.roi_pct ?? 0,
+    } : null,
+    streak: ms.streak ? {
+      maxWin: ms.streak.max_win ?? 0,
+      maxLoss: ms.streak.max_loss ?? 0,
+    } : null,
   };
 }
 

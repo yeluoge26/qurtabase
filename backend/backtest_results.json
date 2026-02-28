@@ -1,0 +1,70 @@
+{
+  "total": 4706,
+  "test_period": "2023-05 to 2025-05",
+  "accuracy_1x2": 62.4,
+  "accuracy_ou": 50.7,
+  "mean_brier": 0.477,
+  "avg_confidence": 57.8,
+  "by_league": {
+    "Bundesliga": {
+      "total": 621,
+      "correct": 403,
+      "accuracy": 64.9
+    },
+    "EPL": {
+      "total": 773,
+      "correct": 524,
+      "accuracy": 67.8
+    },
+    "Championship": {
+      "total": 1104,
+      "correct": 583,
+      "accuracy": 52.8
+    },
+    "Ligue 1": {
+      "total": 636,
+      "correct": 404,
+      "accuracy": 63.5
+    },
+    "Serie A": {
+      "total": 782,
+      "correct": 508,
+      "accuracy": 65.0
+    },
+    "La Liga": {
+      "total": 790,
+      "correct": 516,
+      "accuracy": 65.3
+    }
+  },
+  "by_confidence": {
+    "high": {
+      "total": 646,
+      "correct": 618,
+      "accuracy": 95.7,
+      "avg_conf": 87.8
+    },
+    "med": {
+      "total": 868,
+      "correct": 685,
+      "accuracy": 78.9,
+      "avg_conf": 71.8
+    },
+    "low": {
+      "total": 3192,
+      "correct": 1635,
+      "accuracy": 51.2,
+      "avg_conf": 47.9
+    }
+  },
+  "roi": {
+    "bets": 2716,
+    "staked": 27160,
+    "returned": 39157.0,
+    "roi_pct": 44.2
+  },
+  "streak": {
+    "max_win": 17,
+    "max_loss": 8
+  }
+}

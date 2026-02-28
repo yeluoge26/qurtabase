@@ -1,0 +1,330 @@
+[
+  {
+    "home": "Swedru All Blacks",
+    "away": "Medeama",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Holy Stars",
+    "away": "Heart of Lions",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Hohoe United",
+    "away": "Samartex",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Dreams",
+    "away": "Aduana",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Bibiani Gold Stars",
+    "away": "Hearts of Oak",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Berekum Chelsea",
+    "away": "Young Apostles",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "HOME",
+    "probabilities": {
+      "home": 58.3,
+      "draw": 9.1,
+      "away": 32.6
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 51.8,
+    "prob_under": 48.2,
+    "lambda_total": 2.75,
+    "confidence": 67,
+    "key_factors": [
+      {
+        "factor": "elo_advantage",
+        "team": "home",
+        "value": "+120",
+        "direction": "positive"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.75",
+        "direction": "positive"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Bechem United",
+    "away": "Karela",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  },
+  {
+    "home": "Asante Kotoko",
+    "away": "Vision",
+    "date": "2026-03-01",
+    "time": "16:00",
+    "league": "Premier League",
+    "active": true,
+    "recommendation_1x2": "DRAW",
+    "probabilities": {
+      "home": 45.5,
+      "draw": 9.1,
+      "away": 45.5
+    },
+    "ou_recommendation": "UNDER",
+    "ou_line": 2.5,
+    "prob_over": 50.6,
+    "prob_under": 49.4,
+    "lambda_total": 2.7,
+    "confidence": 57,
+    "key_factors": [
+      {
+        "factor": "elo_balanced",
+        "team": "neutral",
+        "value": "Δ0",
+        "direction": "neutral"
+      },
+      {
+        "factor": "expected_goals",
+        "team": "neutral",
+        "value": "λ=2.70",
+        "direction": "negative"
+      },
+      {
+        "factor": "no_market_data",
+        "team": "neutral",
+        "value": "ELO ONLY",
+        "direction": "neutral"
+      }
+    ],
+    "source": "ELO"
+  }
+]

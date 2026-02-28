@@ -22,6 +22,9 @@ import AISpeakingIndicator from "./components/AISpeakingIndicator";
 import BroadcastBar from "./components/BroadcastBar";
 import ScoreMatrix from "./components/ScoreMatrix";
 import ValueBetScanner from "./components/ValueBetScanner";
+import PredictionHistory from "./components/PredictionHistory";
+import PreMatchPanel from "./components/PreMatchPanel";
+import ModelStats from "./components/ModelStats";
 import { useVoiceHighlight, getHighlightStyle } from "./hooks/useVoiceHighlight";
 import useSoundEffects from "./hooks/useSoundEffects";
 
@@ -308,6 +311,16 @@ export default function QuantTerminal({ matchId = "demo" }) {
       {/* ═══ POST-MATCH SUMMARY ═══ */}
       <PostMatchSummary data={d.postMatch} t={t} lang={lang} />
 
+      {/* ═══ PRE-MATCH PANEL ═══ */}
+      {d.preMatchRec?.active && (
+        <PreMatchPanel
+          data={d.preMatchRec}
+          homeName={hn}
+          awayName={an}
+          lang={lang}
+        />
+      )}
+
       {/* ═══ MAIN GRID ═══ */}
       <div style={sty.mainGrid}>
 
@@ -592,6 +605,16 @@ export default function QuantTerminal({ matchId = "demo" }) {
           {/* Track Record / Performance */}
           {d.performance && (
             <TrackRecord data={d.performance} label={t.todayPerformance} lang={lang} />
+          )}
+
+          {/* Prediction History */}
+          {d.predictionHistory && (
+            <PredictionHistory data={d.predictionHistory} lang={lang} />
+          )}
+
+          {/* Model Stats (Backtest) */}
+          {d.modelStats && (
+            <ModelStats data={d.modelStats} lang={lang} />
           )}
 
           {/* Phase 7: Score Matrix (Poisson) */}
