@@ -20,7 +20,10 @@ import SignalControlPanel from "./components/SignalControlPanel";
 import PostMatchSummary from "./components/PostMatchSummary";
 import AISpeakingIndicator from "./components/AISpeakingIndicator";
 import BroadcastBar from "./components/BroadcastBar";
+import ScoreMatrix from "./components/ScoreMatrix";
+import ValueBetScanner from "./components/ValueBetScanner";
 import { useVoiceHighlight, getHighlightStyle } from "./hooks/useVoiceHighlight";
+import useSoundEffects from "./hooks/useSoundEffects";
 
 /*
  * ═══════════════════════════════════════════════════════════════════
@@ -154,6 +157,33 @@ export default function QuantTerminal({ matchId = "demo" }) {
   // AI Voice highlight
   const highlights = useVoiceHighlight(d?.broadcast?.speaking, d?.broadcast?.stage);
 
+  // Sound effects
+  const sfx = useSoundEffects(true);
+  const prevEventCountRef = useRef(0);
+  const prevBroadcastStageRef = useRef(null);
+
+  // Sound triggers on data changes
+  useEffect(() => {
+    if (!d) return;
+    // Detect new events
+    const events = d?.events || [];
+    if (events.length > prevEventCountRef.current) {
+      const newEvents = events.slice(prevEventCountRef.current);
+      newEvents.forEach(evt => {
+        const t = (evt.type || "").toLowerCase();
+        if (t.includes("goal")) sfx.goal();
+        else if (t.includes("red")) sfx.redCard();
+      });
+      prevEventCountRef.current = events.length;
+    }
+    // Detect broadcast stage changes
+    const stage = d?.broadcast?.stage || null;
+    if (stage && stage !== prevBroadcastStageRef.current) {
+      if (stage === "SIGNAL_CONFIRM") sfx.signal();
+      prevBroadcastStageRef.current = stage;
+    }
+  }, [d?.meta?.seq, d, sfx]);
+
   // Accumulate history
   useEffect(() => {
     if (!d) return;
@@ -206,6 +236,20 @@ export default function QuantTerminal({ matchId = "demo" }) {
       {/* ═══ LAYER 1: STATE BAR + META ═══ */}
       <div style={sty.stateBar}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* System Online Indicator */}
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: connected ? C.up : C.down,
+              animation: connected ? "sysPulse 2s ease-in-out infinite" : "none",
+            }} />
+            <span style={{
+              fontSize: 8, letterSpacing: 2, fontWeight: 600, fontFamily: "mono",
+              color: connected ? C.up : C.down,
+            }}>{connected ? "SYSTEM ONLINE" : "OFFLINE"}</span>
+          </div>
+          {/* Model Version */}
+          <span style={{ fontSize: 8, letterSpacing: 1, color: C.textMuted, fontFamily: "mono" }}>MODEL v2.2</span>
           <span style={{ fontSize: 9, color: C.accent, letterSpacing: 3, fontWeight: 700 }}>QUANT TERMINAL</span>
           <span style={sty.divider}>|</span>
           <span style={{ color: C.textDim, fontSize: 10 }}>{d.league}</span>
@@ -344,6 +388,11 @@ export default function QuantTerminal({ matchId = "demo" }) {
           {/* v2.0 O/U Scanner (multi-line) */}
           {d.totalGoals?.scanner && (
             <OUScanner data={d.totalGoals.scanner} label={t.ouScanner} />
+          )}
+
+          {/* Phase 7: Value Bet Scanner (EV) */}
+          {d.valueBet && (
+            <ValueBetScanner data={d.valueBet} lang={lang} L={t} />
           )}
 
           {/* Line Movement */}
@@ -541,6 +590,17 @@ export default function QuantTerminal({ matchId = "demo" }) {
           {d.performance && (
             <TrackRecord data={d.performance} label={t.todayPerformance} />
           )}
+
+          {/* Phase 7: Score Matrix (Poisson) */}
+          {d.scoreMatrix && (
+            <ScoreMatrix
+              data={d.scoreMatrix}
+              homeName={d.home?.name}
+              awayName={d.away?.name}
+              lang={lang}
+              L={t}
+            />
+          )}
         </div>
       </div>
 
@@ -578,6 +638,7 @@ export default function QuantTerminal({ matchId = "demo" }) {
 const globalCSS = `
   @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
   @keyframes delayFlash{0%,100%{opacity:1}50%{opacity:0.3}}
+  @keyframes sysPulse{0%,100%{opacity:1}50%{opacity:0.6}}
   *{box-sizing:border-box}
   ::-webkit-scrollbar{width:3px}
   ::-webkit-scrollbar-track{background:transparent}

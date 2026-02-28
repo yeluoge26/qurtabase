@@ -213,6 +213,16 @@ class TotalGoalsEngine:
             market_over_prob=p_mkt_over * 100 if p_mkt_over is not None else None,
         )
 
+        # ── 11. Expected Value (EV) ──
+        ev = None
+        if odds_ou and odds_ou.get("over_odds") and odds_ou.get("under_odds"):
+            ev = self.compute_ev(
+                model_prob_over=p_final,
+                market_over_odds=odds_ou["over_odds"],
+                model_prob_under=1.0 - p_final,
+                market_under_odds=odds_ou["under_odds"],
+            )
+
         return {
             # Core λ values
             "lambda_pre": round(lam_pre, 2),
@@ -244,6 +254,16 @@ class TotalGoalsEngine:
 
             # Scanner (multi-line O/U)
             "scanner": scanner,
+
+            # Expected Value (EV)
+            "ev": ev,
+
+            # Value Bet (simplified EV via market prob)
+            "value_bet": self.compute_value_bet(
+                model_prob_over=p_final,
+                market_prob_over=p_mkt_over if p_mkt_over is not None else p_final,
+                line=line,
+            ),
         }
 
     def _poisson_over_prob(self, lam_remaining: float, goals_so_far: int, line: float) -> float:
@@ -326,6 +346,99 @@ class TotalGoalsEngine:
             })
 
         return results
+
+    def compute_ev(self, model_prob_over: float, market_over_odds: float,
+                   model_prob_under: float, market_under_odds: float) -> dict:
+        """
+        Compute Expected Value for Over and Under bets.
+
+        EV = (prob * odds) - 1
+        Confidence: LOW (<2%), MED (2-5%), HIGH (5-8%), STRONG (>8%)
+        """
+        try:
+            ev_over = (model_prob_over * market_over_odds) - 1 if market_over_odds > 0 else 0
+            ev_under = (model_prob_under * market_under_odds) - 1 if market_under_odds > 0 else 0
+
+            def confidence(ev):
+                if ev < 0.02:
+                    return "LOW"
+                if ev < 0.05:
+                    return "MED"
+                if ev < 0.08:
+                    return "HIGH"
+                return "STRONG"
+
+            best_side = "OVER" if ev_over > ev_under else "UNDER"
+            best_ev = max(ev_over, ev_under)
+
+            return {
+                "ev_over": round(ev_over, 4),
+                "ev_under": round(ev_under, 4),
+                "confidence_over": confidence(ev_over),
+                "confidence_under": confidence(ev_under),
+                "best_side": best_side,
+                "best_ev": round(best_ev, 4),
+                "best_confidence": confidence(best_ev),
+                "threshold_met": best_ev >= 0.05,  # +5% EV threshold
+            }
+        except Exception:
+            return {
+                "ev_over": 0,
+                "ev_under": 0,
+                "confidence_over": "LOW",
+                "confidence_under": "LOW",
+                "best_side": "OVER",
+                "best_ev": 0,
+                "best_confidence": "LOW",
+                "threshold_met": False,
+            }
+
+    def compute_value_bet(self, model_prob_over: float, market_prob_over: float, line: float) -> dict:
+        """
+        Compute Expected Value for the O/U bet.
+
+        EV = (model_prob * payout) - 1
+        Payout ~ 1 / market_prob (fair odds approximation)
+        """
+        if market_prob_over <= 0 or market_prob_over >= 1:
+            return {"ev_over": 0, "ev_under": 0, "confidence": "LOW", "is_value": False,
+                    "best_side": "OVER", "best_ev": 0, "line": line}
+
+        model_prob_under = 1 - model_prob_over
+        market_prob_under = 1 - market_prob_over
+
+        # Fair odds (no vig approximation)
+        payout_over = 1 / market_prob_over if market_prob_over > 0 else 0
+        payout_under = 1 / market_prob_under if market_prob_under > 0 else 0
+
+        ev_over = round((model_prob_over * payout_over - 1) * 100, 2)  # as percentage
+        ev_under = round((model_prob_under * payout_under - 1) * 100, 2)
+
+        # Best EV
+        best_ev = max(ev_over, ev_under)
+        best_side = "OVER" if ev_over >= ev_under else "UNDER"
+
+        # Confidence rating
+        if best_ev >= 15:
+            confidence = "STRONG"
+        elif best_ev >= 10:
+            confidence = "HIGH"
+        elif best_ev >= 5:
+            confidence = "MED"
+        else:
+            confidence = "LOW"
+
+        is_value = best_ev >= 5  # threshold for value bet
+
+        return {
+            "ev_over": ev_over,
+            "ev_under": ev_under,
+            "best_side": best_side,
+            "best_ev": best_ev,
+            "confidence": confidence,
+            "is_value": is_value,
+            "line": line,
+        }
 
     def _estimate_lambda_from_over_prob(self, p_over: float, goals_so_far: int, line: float) -> float:
         """Estimate λ_remaining from market over probability using bisection."""

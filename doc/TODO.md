@@ -169,9 +169,9 @@
 - [x] Frontend `RiskPanel.jsx` + Backend `risk_engine.py` *(v2.0)*
 
 ### Pre vs Live Comparison
-- [ ] PRE TOTAL λ vs LIVE TOTAL λ with percentage delta
-- [ ] TEMPO vs EXPECTED comparison
-- [ ] Integrated into TotalGoalsPanel header
+- [x] PRE λ → LIVE λ with Δ percentage delta *(v2.3)*
+- [x] TEMPO vs EXP 50 with Δ percentage *(v2.3)*
+- [x] Integrated into TotalGoalsPanel header (compact 16px row) *(v2.3)*
 
 ### Market Pressure Index
 - [x] Market pressure indicator in LineMovement *(v2.0)*
@@ -203,7 +203,7 @@
 - [x] Auto-generated summary on match end (minute≥90) *(v2.1)*
 - [x] Fields: Pre λ, Final Goals, Peak λ, Best Edge, λ Accuracy *(v2.1)*
 - [x] POST-MATCH scene trigger *(v2.1)*
-- [ ] Export capability (JSON / image snapshot)
+- [x] Export JSON with EXPORT JSON button (match_summary_YYYY-MM-DD_HH-MM.json) *(v2.3)*
 - [x] Frontend `PostMatchSummary.jsx` component *(v2.1)*
 - [x] Backend `post_match_engine.py` *(v2.1)*
 
@@ -251,74 +251,73 @@
 
 ---
 
-## Phase 6: v2.0 OBS Scene Integration — P4
+## Phase 6: v2.0 OBS Scene Integration — COMPLETE *(v2.3)*
 
 ### 4-Scene Structure
-- [ ] Scene 1: PRE-MATCH (赛前预热, kickoff countdown)
-- [ ] Scene 2: LIVE TRADING (主场景, 90% of time)
-- [ ] Scene 3: SIGNAL FOCUS (信号放大, 5-10s on confirm)
-- [ ] Scene 4: POST-MATCH SUMMARY (赛后总结)
+- [x] Scene 1: PRE-MATCH (kickoff countdown) *(v2.3)*
+- [x] Scene 2: LIVE TRADING (main scene, 90% of time) *(v2.3)*
+- [x] Scene 3: SIGNAL FOCUS (signal zoom, 5-10s on confirm) *(v2.3)*
+- [x] Scene 4: POST-MATCH SUMMARY *(v2.3)*
 
 ### OBS Layer Structure
-- [ ] Layer 1: Background (#0E1117 color source)
-- [ ] Layer 2: Main terminal (Browser Source 1920x1080)
-- [ ] Layer 3: Signal Overlay (separate browser source, 6s fade)
-- [ ] Layer 4: AI voice status bar ("AI SPEAKING...")
-- [ ] Layer 5: Today performance panel (fixed bottom-right)
-- [ ] Layer 6: Disclaimer bar (fixed bottom 20px)
+- [x] 6-layer structure documented (Background → Terminal → Signal → AI Status → Performance → Disclaimer) *(v2.3)*
 
 ### OBS Configuration
-- [ ] Hotkey mapping: F1=Signal, F2=Live, F3=Summary, F4=TTS
-- [ ] Output: 1080p 30fps, 6000kbps, Keyframe 2s
-- [ ] YouTube RTMPS streaming tested
-- [ ] Browser Source: Shutdown when not visible, Refresh on scene active
+- [x] Hotkey mapping: F1=Signal, F2=Live, F3=Summary, F4=TTS *(v2.3)*
+- [x] Output: 1080p 30fps, 6000kbps, Keyframe 2s *(v2.3)*
+- [x] YouTube RTMPS streaming guide *(v2.3)*
+- [x] Browser Source settings documented *(v2.3)*
+- [x] `doc/OBS_SETUP.md` comprehensive setup guide *(v2.3)*
 
 ### Streaming Enhancements
-- [ ] System Online indicator (green dot, top-left)
-- [ ] Model version display (e.g. "MODEL v2.3")
-- [ ] Audio: TTS -3dB, ambient -28dB
+- [x] System Online indicator (green pulsing dot + "SYSTEM ONLINE", red when disconnected) *(v2.3)*
+- [x] Model version display ("MODEL v2.2") *(v2.3)*
+- [x] Audio settings documented (TTS -3dB, ambient -28dB) *(v2.3)*
 
 ---
 
-## Phase 7: Advanced Features — P5 (Month 3+)
+## Phase 7: Advanced Features — COMPLETE *(v2.3)*
 
 ### Event Alert System
 - [x] Goal: Full-viewport gold flash 2.5s *(v2.1)*
 - [x] Red card: Full-viewport red flash 2s *(v2.1)*
 - [x] Probability swing > 15%: Full-viewport cyan flash 3s *(v2.1)*
 - [x] `EventAlert.jsx` + `useEventAlert.js` hook with sequential queue *(v2.1)*
-- [ ] OBS WebSocket notification for sound triggers
+- [x] Web Audio API sound triggers (goal/red card/signal) via `useSoundEffects.js` *(v2.3)*
 
 ### Monte Carlo Score Matrix
-- [ ] Poisson-based correct score probability matrix
-- [ ] Heat map visualization (color-coded cells)
-- [ ] Most Likely scores display (top 3)
-- [ ] Frontend `ScoreMatrix.jsx` component
+- [x] Poisson-based correct score probability matrix (6×6, 0-5 goals) *(v2.3)*
+- [x] Heat map visualization (opacity-scaled gold cells, gold glow on max) *(v2.3)*
+- [x] Most Likely scores display (top 3) *(v2.3)*
+- [x] Frontend `ScoreMatrix.jsx` + Backend `score_matrix_engine.py` *(v2.3)*
 
 ### Multi-Match Terminal
-- [ ] Grid layout (3-4 matches side by side)
-- [ ] Per-match compact card
-- [ ] WebSocket connection per match
-- [ ] Frontend `MatchGrid.jsx` component
+- [x] Responsive grid layout (auto-fill, 3-4 matches) *(v2.3)*
+- [x] Per-match compact card (status dot, score, λ/edge/signal) *(v2.3)*
+- [x] Frontend `MatchGrid.jsx` component (standalone, data-driven) *(v2.3)*
+- [ ] WebSocket connection per match (backend multi-match support)
 
 ### Chat Voting System
-- [ ] YouTube Live Chat API reader
-- [ ] TikTok/Douyin Live Connector
-- [ ] Vote parsing (1/X/2) + real-time aggregation
-- [ ] Model vs Audience comparison
-- [ ] Frontend `VotePanel.jsx` component
+- [x] Frontend `VotePanel.jsx` (1/X/2 bars, MODEL vs AUDIENCE, divergence highlight) *(v2.3)*
+- [x] Model vs Audience comparison with >10% divergence badge *(v2.3)*
+- [ ] YouTube Live Chat API reader (backend)
+- [ ] TikTok/Douyin Live Connector (backend)
+- [ ] Vote parsing (1/X/2) + real-time aggregation (backend)
 
 ### Sound Design
-- [ ] Goal: Bloomberg trade execution sound
-- [ ] Red card: alarm beep
-- [ ] Probability swing > 15%: stock limit-up alert
-- [ ] Half-time: exchange closing bell
-- [ ] Model recalculation: clean "ding"
+- [x] Goal: Bloomberg 3-note arpeggio (C5-E5-G5) *(v2.3)*
+- [x] Red card: alarm double beep (400Hz square wave) *(v2.3)*
+- [x] Probability swing: ascending frequency sweep (800→1600Hz) *(v2.3)*
+- [x] Half-time: exchange closing bell (800Hz sine, 600ms) *(v2.3)*
+- [x] Model recalculation: clean ding (1200Hz, 150ms) *(v2.3)*
+- [x] Signal confirm: two-tone (E5-G5) *(v2.3)*
+- [x] `useSoundEffects.js` Web Audio API hook — no external files *(v2.3)*
 
 ### Value Bet Scanner (EV)
-- [ ] Model vs Market edge detection (threshold: +5%)
-- [ ] Expected Value per $1
-- [ ] Confidence rating (LOW/MED/HIGH/STRONG)
+- [x] Model vs Market edge detection with EV computation *(v2.3)*
+- [x] Expected Value per $1 for OVER/UNDER *(v2.3)*
+- [x] Confidence rating (LOW/MED/HIGH/STRONG) *(v2.3)*
+- [x] Frontend `ValueBetScanner.jsx` + Backend `compute_value_bet()` *(v2.3)*
 
 ---
 

@@ -110,6 +110,40 @@ export default function TotalGoalsPanel({ totalGoals, quant }) {
         <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'IBM Plex Mono', monospace" }}>O/U TRADING</span>
       </div>
 
+      {/* PRE vs LIVE λ comparison strip */}
+      {(() => {
+        const lambdaPct = lambda_pre !== 0 ? ((lambda_live - lambda_pre) / lambda_pre) * 100 : 0;
+        const tempoPct = ((tempo_index - 50) / 50) * 100;
+        const lambdaColor = lambdaPct > 0 ? C.up : lambdaPct < 0 ? C.down : C.textMuted;
+        const tempoColor = tempoPct > 0 ? C.up : tempoPct < 0 ? C.down : C.textMuted;
+        const mono = "'IBM Plex Mono', monospace";
+        const s = { fontSize: 8, fontFamily: mono, letterSpacing: 0.5 };
+        return (
+          <div style={{
+            display: "flex", alignItems: "center", height: 16,
+            padding: "0 4px", marginBottom: 6,
+            background: C.bg, border: `1px solid ${C.borderLight}`, borderRadius: 2,
+          }}>
+            <span style={{ ...s, color: C.textDim }}>
+              PRE {"\u03BB"} <span style={{ color: C.accent, fontWeight: 700 }}>{lambda_pre.toFixed(2)}</span>
+              <span style={{ color: C.textMuted, margin: "0 2px" }}>{"\u2192"}</span>
+              LIVE {"\u03BB"} <span style={{ color: C.accent, fontWeight: 700 }}>{lambda_live.toFixed(2)}</span>
+              <span style={{ color: lambdaColor, fontWeight: 700, marginLeft: 3 }}>
+                {"\u0394"}{lambdaPct > 0 ? "+" : ""}{lambdaPct.toFixed(1)}%
+              </span>
+            </span>
+            <span style={{ ...s, color: C.textMuted, margin: "0 6px" }}>|</span>
+            <span style={{ ...s, color: C.textDim }}>
+              TEMPO <span style={{ color: C.accent, fontWeight: 700 }}>{tempo_index}</span>
+              <span style={{ color: C.textMuted, margin: "0 2px" }}>(EXP 50)</span>
+              <span style={{ color: tempoColor, fontWeight: 700, marginLeft: 3 }}>
+                {"\u0394"}{tempoPct > 0 ? "+" : ""}{Math.round(tempoPct)}%
+              </span>
+            </span>
+          </div>
+        );
+      })()}
+
       {/* Lambda values */}
       <div style={{ marginBottom: 4 }}>
         <LambdaRow label="Pre \u03BB_total" value={lambda_pre} />

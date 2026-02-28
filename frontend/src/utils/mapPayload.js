@@ -113,6 +113,12 @@ export function mapPayload(raw) {
     // Total Goals (O/U engine)
     totalGoals: mapTotalGoals(raw.total_goals),
 
+    // Score Matrix (Poisson correct score)
+    scoreMatrix: mapScoreMatrix(raw.score_matrix),
+
+    // Value Bet (EV scanner)
+    valueBet: mapValueBet(raw.total_goals?.value_bet),
+
     // Goal Window detection
     goalWindow: mapGoalWindow(raw.goal_window),
 
@@ -270,5 +276,28 @@ function mapBroadcast(b) {
     timestamp: b.timestamp || 0,
     speaking: b.speaking ?? false,
     cooldown_remaining: b.cooldown_remaining ?? 0,
+  };
+}
+
+function mapScoreMatrix(sm) {
+  if (!sm) return null;
+  return {
+    matrix: sm.matrix || [],
+    top3: sm.top3 || [],
+    homeLambda: sm.home_lambda ?? 0,
+    awayLambda: sm.away_lambda ?? 0,
+  };
+}
+
+function mapValueBet(vb) {
+  if (!vb) return null;
+  return {
+    evOver: vb.ev_over ?? 0,
+    evUnder: vb.ev_under ?? 0,
+    bestSide: vb.best_side || "OVER",
+    bestEv: vb.best_ev ?? 0,
+    confidence: vb.confidence || "LOW",
+    isValue: vb.is_value ?? false,
+    line: vb.line ?? 2.5,
   };
 }

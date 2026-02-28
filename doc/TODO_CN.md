@@ -169,9 +169,9 @@
 - [x] 前端 `RiskPanel.jsx` + 后端 `risk_engine.py` *(v2.0)*
 
 ### 赛前 vs 实时对比
-- [ ] PRE TOTAL λ vs LIVE TOTAL λ 含百分比变化
-- [ ] TEMPO vs EXPECTED 对比
-- [ ] 集成到 TotalGoalsPanel 顶部
+- [x] PRE λ → LIVE λ 含 Δ 百分比变化 *(v2.3)*
+- [x] TEMPO vs EXP 50 含 Δ 百分比 *(v2.3)*
+- [x] 集成到 TotalGoalsPanel 顶部（紧凑 16px 行）*(v2.3)*
 
 ### 市场压力指数
 - [x] 市场压力指示器集成到 LineMovement *(v2.0)*
@@ -203,7 +203,7 @@
 - [x] 比赛结束自动生成总结（minute≥90）*(v2.1)*
 - [x] 字段：Pre λ、最终进球、Peak λ、最佳 Edge、λ 准确度 *(v2.1)*
 - [x] POST-MATCH 场景触发 *(v2.1)*
-- [ ] 导出功能（JSON / 图片快照）
+- [x] EXPORT JSON 导出按钮（match_summary_YYYY-MM-DD_HH-MM.json）*(v2.3)*
 - [x] 前端 `PostMatchSummary.jsx` 组件 *(v2.1)*
 - [x] 后端 `post_match_engine.py` *(v2.1)*
 
@@ -251,74 +251,73 @@
 
 ---
 
-## 阶段 6：v2.0 OBS 场景集成 — P4
+## 阶段 6：v2.0 OBS 场景集成 — 已完成 *(v2.3)*
 
 ### 4 场景结构
-- [ ] 场景1：PRE-MATCH（赛前预热，开球倒计时）
-- [ ] 场景2：LIVE TRADING（主场景，占 90% 时间）
-- [ ] 场景3：SIGNAL FOCUS（信号放大，确认后持续 5-10秒）
-- [ ] 场景4：POST-MATCH SUMMARY（赛后总结）
+- [x] 场景1：PRE-MATCH（开球倒计时）*(v2.3)*
+- [x] 场景2：LIVE TRADING（主场景，占 90% 时间）*(v2.3)*
+- [x] 场景3：SIGNAL FOCUS（信号放大，确认后 5-10秒）*(v2.3)*
+- [x] 场景4：POST-MATCH SUMMARY（赛后总结）*(v2.3)*
 
 ### OBS 图层结构
-- [ ] 图层1：背景层（#0E1117 颜色源）
-- [ ] 图层2：主终端（Browser Source 1920x1080）
-- [ ] 图层3：信号覆盖层（独立浏览器源，6秒淡出）
-- [ ] 图层4：AI 语音状态条（"AI SPEAKING..."）
-- [ ] 图层5：今日战绩面板（固定右下角）
-- [ ] 图层6：免责声明条（固定底部 20px）
+- [x] 6 层结构文档（背景→终端→信号→AI状态→战绩→免责）*(v2.3)*
 
 ### OBS 配置
-- [ ] 快捷键映射：F1=信号、F2=直播、F3=总结、F4=TTS
-- [ ] 输出：1080p 30fps、6000kbps、关键帧 2s
-- [ ] YouTube RTMPS 推流测试
-- [ ] Browser Source：不可见时关闭、场景激活时刷新
+- [x] 快捷键映射：F1=信号、F2=直播、F3=总结、F4=TTS *(v2.3)*
+- [x] 输出：1080p 30fps、6000kbps、关键帧 2s *(v2.3)*
+- [x] YouTube RTMPS 推流指南 *(v2.3)*
+- [x] Browser Source 设置文档 *(v2.3)*
+- [x] `doc/OBS_SETUP.md` 完整配置指南 *(v2.3)*
 
 ### 直播增强
-- [ ] 系统在线指示灯（绿色圆点，左上角）
-- [ ] 模型版本号显示（如 "MODEL v2.3"）
-- [ ] 音频：TTS -3dB、环境音 -28dB
+- [x] 系统在线指示灯（绿色脉冲 + "SYSTEM ONLINE"，断连时红色）*(v2.3)*
+- [x] 模型版本号显示（"MODEL v2.2"）*(v2.3)*
+- [x] 音频设置文档（TTS -3dB、环境音 -28dB）*(v2.3)*
 
 ---
 
-## 阶段 7：高级功能 — P5（第3月以后）
+## 阶段 7：高级功能 — 已完成 *(v2.3)*
 
 ### 关键事件警报系统
 - [x] 进球：全屏金色闪烁 2.5 秒 *(v2.1)*
 - [x] 红牌：全屏红色闪烁 2 秒 *(v2.1)*
 - [x] 概率剧变 > 15%：全屏青色闪烁 3 秒 *(v2.1)*
 - [x] `EventAlert.jsx` + `useEventAlert.js` 含顺序队列 *(v2.1)*
-- [ ] OBS WebSocket 通知触发音效
+- [x] Web Audio API 音效触发（进球/红牌/信号）`useSoundEffects.js` *(v2.3)*
 
 ### 蒙特卡洛比分矩阵
-- [ ] 基于泊松分布的精确比分概率矩阵
-- [ ] 热力图可视化（颜色深浅编码）
-- [ ] 最可能比分展示（Top 3）
-- [ ] 前端 `ScoreMatrix.jsx` 组件
+- [x] 基于泊松分布的精确比分概率矩阵（6×6，0-5 球）*(v2.3)*
+- [x] 热力图可视化（金色透明度缩放，最大概率金色发光）*(v2.3)*
+- [x] 最可能比分展示（Top 3）*(v2.3)*
+- [x] 前端 `ScoreMatrix.jsx` + 后端 `score_matrix_engine.py` *(v2.3)*
 
 ### 多场比赛并行终端
-- [ ] 网格布局（3-4 场并列）
-- [ ] 单场紧凑卡片
-- [ ] 每场独立 WebSocket 连接
-- [ ] 前端 `MatchGrid.jsx` 组件
+- [x] 响应式网格布局（auto-fill，3-4 场）*(v2.3)*
+- [x] 单场紧凑卡片（状态灯、比分、λ/edge/signal）*(v2.3)*
+- [x] 前端 `MatchGrid.jsx` 组件（独立，数据驱动）*(v2.3)*
+- [ ] 每场独立 WebSocket 连接（后端多场支持）
 
 ### 弹幕投票系统
-- [ ] YouTube 直播弹幕 API 读取
-- [ ] TikTok/抖音 直播连接器
-- [ ] 投票解析（1/X/2）+ 实时聚合
-- [ ] 模型 vs 观众对比
-- [ ] 前端 `VotePanel.jsx` 组件
+- [x] 前端 `VotePanel.jsx`（1/X/2 投票条，模型 vs 观众，分歧高亮）*(v2.3)*
+- [x] 模型 vs 观众对比，分歧 >10% 显示徽章 *(v2.3)*
+- [ ] YouTube 直播弹幕 API 读取（后端）
+- [ ] TikTok/抖音 直播连接器（后端）
+- [ ] 投票解析（1/X/2）+ 实时聚合（后端）
 
 ### 音效设计
-- [ ] 进球：彭博交易执行音
-- [ ] 红牌：警报蜂鸣
-- [ ] 概率剧变 > 15%：涨停提示音
-- [ ] 半场：交易所收盘钟声
-- [ ] 模型重算完成：清脆的"叮"
+- [x] 进球：彭博 3 音符琶音（C5-E5-G5）*(v2.3)*
+- [x] 红牌：警报双蜂鸣（400Hz 方波）*(v2.3)*
+- [x] 概率剧变：上升频率扫描（800→1600Hz）*(v2.3)*
+- [x] 半场：交易所收盘钟声（800Hz 正弦，600ms）*(v2.3)*
+- [x] 模型重算："叮"（1200Hz，150ms）*(v2.3)*
+- [x] 信号确认：双音（E5-G5）*(v2.3)*
+- [x] `useSoundEffects.js` Web Audio API hook——无外部文件 *(v2.3)*
 
 ### 价值投注扫描器（EV）
-- [ ] 模型 vs 市场 Edge 检测（阈值 +5%）
-- [ ] 每 $1 期望收益计算
-- [ ] 信心等级（低/中/高/强）
+- [x] 模型 vs 市场 Edge 检测含 EV 计算 *(v2.3)*
+- [x] 每 $1 期望收益（OVER/UNDER）*(v2.3)*
+- [x] 信心等级（LOW/MED/HIGH/STRONG）*(v2.3)*
+- [x] 前端 `ValueBetScanner.jsx` + 后端 `compute_value_bet()` *(v2.3)*
 
 ---
 

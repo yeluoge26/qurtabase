@@ -34,6 +34,7 @@ from services.market_engine import MarketEngine
 from services.explain_engine import ExplainEngine
 from services.uncertainty_engine import UncertaintyEngine
 from services.total_goals_engine import TotalGoalsEngine
+from services.score_matrix_engine import ScoreMatrixEngine
 from services.goal_window_engine import GoalWindowEngine
 from services.risk_engine import RiskEngine
 from services.post_match_engine import PostMatchEngine
@@ -65,6 +66,7 @@ market_engine = MarketEngine()
 explain_engine = ExplainEngine()
 uncertainty_engine = UncertaintyEngine()
 total_goals_engine = TotalGoalsEngine()
+score_matrix_engine = ScoreMatrixEngine()
 goal_window_engine = GoalWindowEngine()
 risk_engine = RiskEngine()
 post_match_engine = PostMatchEngine()
@@ -653,6 +655,16 @@ class DemoSimulator:
         else:
             post_match = {"active": False}
 
+        # ── Score Matrix ──
+        try:
+            home_share = prob["home"] / max(prob["home"] + prob["away"], 1)
+            away_share = 1.0 - home_share
+            sm_lambda_home = total_goals["lambda_live"] * home_share
+            sm_lambda_away = total_goals["lambda_live"] * away_share
+            score_matrix = score_matrix_engine.compute(sm_lambda_home, sm_lambda_away)
+        except Exception:
+            score_matrix = None
+
         # ═══ v1.1 Full Payload ═══
         payload = {
             "meta": {
@@ -686,6 +698,7 @@ class DemoSimulator:
             "explain": explain,
             "report": report,
             "total_goals": total_goals,
+            "score_matrix": score_matrix,
             "goal_window": goal_window,
             "line_movement": line_movement,
             "risk": risk,
@@ -925,6 +938,16 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                     else:
                         post_match = {"active": False}
 
+                    # ── Score Matrix (live mode) ──
+                    try:
+                        _home_share = prob["home"] / max(prob["home"] + prob["away"], 1)
+                        _away_share = 1.0 - _home_share
+                        _sm_lh = total_goals["lambda_live"] * _home_share
+                        _sm_la = total_goals["lambda_live"] * _away_share
+                        live_score_matrix = score_matrix_engine.compute(_sm_lh, _sm_la)
+                    except Exception:
+                        live_score_matrix = None
+
                     payload = {
                         "meta": {
                             "match_id": match_id,
@@ -950,6 +973,7 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "explain": explain,
                         "report": report,
                         "total_goals": total_goals,
+                        "score_matrix": live_score_matrix,
                         "goal_window": goal_window,
                         "line_movement": line_movement,
                         "risk": risk,

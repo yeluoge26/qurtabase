@@ -71,6 +71,7 @@ export default function PostMatchSummary({ data, t }) {
         justifyContent: "center",
         marginBottom: 18,
         gap: 12,
+        position: "relative",
       }}>
         <span style={{
           fontSize: 9,
@@ -96,6 +97,52 @@ export default function PostMatchSummary({ data, t }) {
         }}>
           {"═══════════════════════════════════"}
         </span>
+        <button
+          onClick={() => {
+            const now = new Date();
+            const pad = n => String(n).padStart(2, "0");
+            const fname = `match_summary_${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}.json`;
+            const exportData = {
+              timestamp: now.toISOString(),
+              home: data?.home ?? "",
+              away: data?.away ?? "",
+              score: finalScore,
+              pre_lambda: preLambda,
+              peak_lambda: peakLambda,
+              avg_lambda: avgLambda,
+              best_edge: bestEdge,
+              lambda_accuracy: accuracy,
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fname;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            fontSize: 8,
+            fontWeight: 700,
+            fontFamily: "'IBM Plex Mono', monospace",
+            letterSpacing: 1,
+            color: C.textDim,
+            background: "transparent",
+            border: `1px solid ${C.border}`,
+            borderRadius: 2,
+            padding: "3px 8px",
+            cursor: "pointer",
+            transition: "color 200ms, border-color 200ms",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = C.gold; e.currentTarget.style.borderColor = C.gold; }}
+          onMouseLeave={e => { e.currentTarget.style.color = C.textDim; e.currentTarget.style.borderColor = C.border; }}
+        >
+          EXPORT JSON
+        </button>
       </div>
 
       {/* Top row: Final Score + Primary metrics */}

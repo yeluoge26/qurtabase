@@ -5,6 +5,35 @@
 
 ---
 
+## [v2.3.0] — 2026-02-28
+
+### Added — OBS Scene Integration (P4)
+- **`doc/OBS_SETUP.md`**: Comprehensive OBS Studio setup guide (4 scenes, 6 layers, hotkeys, output settings, YouTube RTMPS)
+- **System Online indicator**: Green pulsing dot + "SYSTEM ONLINE" in header (red "OFFLINE" when disconnected)
+- **Model version display**: "MODEL v2.2" in header bar
+
+### Added — Advanced Features (P5)
+- **`score_matrix_engine.py`** + **`ScoreMatrix.jsx`**: Poisson-based 6×6 correct score probability matrix with heat map visualization, top 3 most likely scores
+- **`compute_value_bet()`** + **`ValueBetScanner.jsx`**: Expected Value scanner for O/U bets, EV% display, confidence rating (LOW/MED/HIGH/STRONG), pulsing VALUE badge
+- **`useSoundEffects.js`**: Web Audio API Bloomberg-style sound effects — goal (C5-E5-G5 arpeggio), red card (400Hz alarm), prob swing (800→1600Hz sweep), half-time (closing bell), model ding, signal confirm
+- **`MatchGrid.jsx`**: Multi-match grid terminal (responsive grid, compact cards with λ/edge/signal, standalone)
+- **`VotePanel.jsx`**: Audience voting panel (1/X/2 bars, MODEL vs AUDIENCE comparison, >10% divergence badge, standalone)
+
+### Added — Leftover Completions
+- **Pre vs Live λ comparison**: Compact 16px row in TotalGoalsPanel header (PRE λ → LIVE λ Δ%, TEMPO vs EXP 50 Δ%)
+- **Post-Match JSON Export**: EXPORT JSON button in PostMatchSummary (match_summary_YYYY-MM-DD_HH-MM.json)
+
+### Changed
+- `QuantTerminal.jsx`: Added System Online indicator, MODEL v2.2 label, ScoreMatrix, ValueBetScanner, useSoundEffects integration
+- `TotalGoalsPanel.jsx`: Added Pre vs Live comparison strip
+- `PostMatchSummary.jsx`: Added EXPORT JSON button with date-formatted filename
+- `total_goals_engine.py`: Added `compute_value_bet()` method
+- `main.py`: Integrated ScoreMatrixEngine in demo/live payloads
+- `mapPayload.js`: Added scoreMatrix, valueBet mappers
+- `i18n.js`: Added 11 new translation keys (EN/ZH)
+
+---
+
 ## [v2.2.0] — 2026-02-28
 
 ### Added — AI Voice Commentary System (P3)
