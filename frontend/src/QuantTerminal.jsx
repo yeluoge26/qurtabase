@@ -148,7 +148,7 @@ function TrendTab({ tabs, active, onChange }) {
 // ════════════════════════════════════════════════════════════════
 // MAIN TERMINAL v1.1
 // ════════════════════════════════════════════════════════════════
-export default function QuantTerminal({ matchId = "demo" }) {
+export default function QuantTerminal({ matchId }) {
   const [lang, setLang] = useState("en");
   const t = LANG[lang];
   const [trendTab, setTrendTab] = useState("prob");

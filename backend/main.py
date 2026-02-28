@@ -498,10 +498,8 @@ async def get_live_matches():
         except Exception:
             pass
 
-    # 4) Fallback: demo
-    return [{"match_id": "demo", "league": "EPL", "home_name": "Arsenal",
-             "away_name": "Chelsea", "home_short": "ARS", "away_short": "CHE",
-             "active": True, "mode": "demo"}]
+    # 4) No matches available
+    return []
 
 
 @app.get("/api/admin/fixtures")
@@ -1425,9 +1423,37 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
 
                     await ws.send_json(payload)
 
-                except Exception as e:
+                except ValueError as e:
+                    # Match not found — send structured WAITING payload
+                    home_name = config.get("home_name", "Home")
+                    away_name = config.get("away_name", "Away")
                     await ws.send_json({
-                        "meta": {"health": "DEGRADED", "error": str(e), "seq": ms.bump_seq()},
+                        "meta": {"match_id": match_id, "source": "waiting",
+                                 "health": "WAITING", "error": str(e),
+                                 "last_update_ts": 0, "seq": ms.bump_seq()},
+                        "match": {"league": config.get("league", ""),
+                                  "round": config.get("round", ""),
+                                  "minute": 0, "half": "PRE",
+                                  "home_goals": 0, "away_goals": 0,
+                                  "home_short": home_name[:3].upper(),
+                                  "away_short": away_name[:3].upper(),
+                                  "home_name": home_name,
+                                  "away_name": away_name},
+                    })
+                except Exception as e:
+                    # Temporary API error — send DEGRADED with match context
+                    await ws.send_json({
+                        "meta": {"match_id": match_id, "source": "error",
+                                 "health": "DEGRADED", "error": str(e),
+                                 "last_update_ts": 0, "seq": ms.bump_seq()},
+                        "match": {"league": config.get("league", ""),
+                                  "round": config.get("round", ""),
+                                  "minute": 0, "half": "PRE",
+                                  "home_goals": 0, "away_goals": 0,
+                                  "home_short": config.get("home_short", "HOM"),
+                                  "away_short": config.get("away_short", "AWY"),
+                                  "home_name": config.get("home_name", "Home"),
+                                  "away_name": config.get("away_name", "Away")},
                     })
 
                 # Slower polling for finished matches (10s vs 2s)
@@ -1440,23 +1466,8 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
 # ── Startup ───────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():
-    # Auto-register demo match
-    managed_matches["demo"] = {
-        "match_id": "demo", "league": "EPL", "round": "R28",
-        "home_name": "Arsenal", "away_name": "Chelsea",
-        "home_short": "ARS", "away_short": "CHE",
-        "home_name_cn": "阿森纳", "away_name_cn": "切尔西",
-        "home_elo": 1650, "away_elo": 1580,
-        "api_football_id": "", "odds_sport": "soccer_epl",
-        "active": True, "kickoff": "", "status": "demo",
-        "live_enabled": False,
-    }
-    # Seed demo data
-    performance_tracker.seed_demo_data()
-    history_tracker.seed_demo_data()
-
     print("=" * 50)
-    print("  AI Football Quant Terminal v2.3 — Backend")
+    print("  AI Football Quant Terminal v2.5 — Backend")
     print(f"  Mode: {'DEMO' if settings.demo_mode else 'LIVE'}")
     print(f"  Live source: {settings.live_source}")
     print(f"  Odds: {'The Odds API' if settings.has_odds else 'None'}")

@@ -275,6 +275,10 @@ class AllSportsClient:
         result["dangerous_attacks"] = [g("Attacks", "home"), g("Attacks", "away")]
         result["pass_accuracy"] = [g("Passes Accurate", "home", 80), g("Passes Accurate", "away", 80)]
 
+        # Estimate xG when API doesn't provide it
+        if result["xg"] == [0, 0] and (result["shots_on_target"][0] > 0 or result["shots_on_target"][1] > 0):
+            result["xg"] = self._estimate_xg(result)
+
         return result
 
     def _parse_events(self, ev: dict) -> list:
@@ -372,6 +376,22 @@ class AllSportsClient:
             return int(str(time_str).split("+")[0].strip().replace("'", ""))
         except (ValueError, IndexError):
             return 0
+
+    @staticmethod
+    def _estimate_xg(stats: dict) -> list:
+        """Estimate xG from shots-on-target when API doesn't provide it.
+        ~0.10 xG per SOT (league average), adjusted by dangerous attacks ratio."""
+        sot = stats.get("shots_on_target", [0, 0])
+        da = stats.get("dangerous_attacks", [0, 0])
+        shots = stats.get("shots", [0, 0])
+        xg = [0.0, 0.0]
+        for i in range(2):
+            base = sot[i] * 0.10
+            if shots[i] > 0 and da[i] > 0:
+                quality = min(1.5, 0.8 + (da[i] / max(shots[i] * 5, 1)) * 0.7)
+                base *= quality
+            xg[i] = round(base, 2)
+        return xg
 
     @staticmethod
     def _empty_stats() -> dict:
