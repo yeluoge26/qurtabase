@@ -86,7 +86,7 @@ export const LANG = {
     // ── Disclaimer / Footer ──────────────────────────────
     disclaimer: "DATA VISUALIZATION ONLY — NO MATCH FOOTAGE — QUANT MODEL OUTPUT",
     disclaimerShort: "DATA VISUALIZATION ONLY — NOT FINANCIAL ADVICE",
-    copyright: "AI FOOTBALL QUANT TERMINAL v2.0 © 2026",
+    copyright: "AI FOOTBALL QUANT TERMINAL v2.0 © 2026 Techspace",
     footerModel: "MODEL XGB+POISSON",
 
     // ── Half Time ────────────────────────────────────────
@@ -405,7 +405,7 @@ export const LANG = {
     // ── 免责 / 页脚 ─────────────────────────────────────
     disclaimer: "仅为数据可视化 — 不含比赛画面 — 量化模型输出",
     disclaimerShort: "仅为数据可视化 — 非投资建议",
-    copyright: "人工智能足球量化终端 v2.0 © 2026",
+    copyright: "人工智能足球量化终端 v2.0 © 2026 Techspace",
     footerModel: "模型 梯度提升+泊松",
 
     // ── 半场 ─────────────────────────────────────────────

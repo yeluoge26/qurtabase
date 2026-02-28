@@ -148,9 +148,16 @@ function LeagueCard({ prediction, t }) {
         padding: "8px 12px", borderBottom: `1px solid ${C.borderLight}`,
         background: C.bgRow,
       }}>
-        <span style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.accentBright,
-        }}>{p.league}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, letterSpacing: 2, color: C.accentBright,
+          }}>{p.league}</span>
+          {p.country && (
+            <span style={{ fontSize: 8, color: C.textDim, letterSpacing: 1 }}>
+              {p.country}
+            </span>
+          )}
+        </div>
         {p.backtest_accuracy > 0 && (
           <span style={{
             fontSize: 8, fontWeight: 700, letterSpacing: 1,
@@ -215,6 +222,14 @@ function LeagueCard({ prediction, t }) {
             color: p.ou_recommendation === "OVER" ? C.up : C.accentBlue,
           }}>
             {p.ou_recommendation === "OVER" ? t.over : t.under}
+          </div>
+          <div style={{ display: "flex", gap: 8, fontSize: 8, marginTop: 3 }}>
+            <span style={{ color: p.ou_recommendation === "OVER" ? C.up : C.textDim }}>
+              {t.over} {p.prob_over}%
+            </span>
+            <span style={{ color: p.ou_recommendation === "UNDER" ? C.accentBlue : C.textDim }}>
+              {t.under} {p.prob_under}%
+            </span>
           </div>
           <div style={{ fontSize: 8, color: C.textDim, marginTop: 2 }}>
             {t.lambda} = {p.lambda_total}
@@ -303,7 +318,7 @@ export default function LeagueDashboard({ data, lang: initLang = "zh" }) {
       <style>{dashCSS}</style>
 
       {/* ═══ TOP BAR ═══ */}
-      <div style={{
+      <div className="ld-top-bar" style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
         padding: "10px 20px",
         borderBottom: `1px solid ${C.border}`,
@@ -315,6 +330,7 @@ export default function LeagueDashboard({ data, lang: initLang = "zh" }) {
             color: C.accentBright,
             textShadow: `0 0 12px ${C.accent}30`,
           }}>QURTABASE</span>
+          <span style={{ fontSize: 7, color: C.textMuted, letterSpacing: 1 }}>by Techspace</span>
           <span style={{ fontSize: 9, color: C.textMuted, letterSpacing: 2 }}>
             {t.title}
           </span>
@@ -337,7 +353,7 @@ export default function LeagueDashboard({ data, lang: initLang = "zh" }) {
       </div>
 
       {/* ═══ MODEL STATS BAR ═══ */}
-      <div style={{
+      <div className="ld-stats-bar" style={{
         display: "flex", justifyContent: "center", gap: 32,
         padding: "8px 20px",
         borderBottom: `2px solid ${C.accent}`,
@@ -361,7 +377,7 @@ export default function LeagueDashboard({ data, lang: initLang = "zh" }) {
       </div>
 
       {/* ═══ LEAGUE CARDS GRID ═══ */}
-      <div style={{
+      <div className="ld-cards-grid" style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
         gap: 12, padding: "16px 20px",
@@ -372,7 +388,7 @@ export default function LeagueDashboard({ data, lang: initLang = "zh" }) {
       </div>
 
       {/* ═══ FOOTER ═══ */}
-      <div style={{
+      <div className="ld-footer" style={{
         display: "flex", justifyContent: "center", alignItems: "center", gap: 16,
         padding: "12px 20px",
         borderTop: `1px solid ${C.border}`,
@@ -405,5 +421,11 @@ const dashCSS = `
   @keyframes pulse {
     0%, 100% { transform: translateX(0); }
     50% { transform: translateX(100%); }
+  }
+  @media(max-width:768px){
+    .ld-top-bar{flex-wrap:wrap;padding:8px 12px!important;gap:8px!important}
+    .ld-stats-bar{flex-wrap:wrap;gap:12px!important;padding:6px 12px!important}
+    .ld-cards-grid{padding:8px 8px!important;gap:8px!important;grid-template-columns:1fr!important}
+    .ld-footer{flex-wrap:wrap;gap:8px!important;padding:8px 12px!important;font-size:8px!important}
   }
 `;

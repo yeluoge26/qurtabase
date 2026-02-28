@@ -85,6 +85,15 @@ post_match_engine = PostMatchEngine()
 performance_tracker = PerformanceTracker()
 history_tracker = HistoryTracker()
 prematch_engine = PreMatchEngine()
+_prematch_cache: dict[str, dict] = {}  # match_id → cached pre-match rec
+
+def _get_cached_prematch(match_id: str, config: dict, minute: int) -> dict:
+    """Return pre-match rec, caching on first compute so it persists throughout match."""
+    if match_id not in _prematch_cache:
+        result = prematch_engine.compute(config)
+        _prematch_cache[match_id] = result
+    return _prematch_cache[match_id]
+
 tts_engine = TTSEngine()
 broadcast_engine = BroadcastEngine() if BroadcastEngine else None
 state_store = MatchStateStore()
@@ -1080,9 +1089,9 @@ class DemoSimulator:
             "performance": performance_tracker.get_summary(),
             "post_match": post_match,
             "prediction_history": history_tracker.get_summary(),
-            "pre_match_rec": prematch_engine.compute({
+            "pre_match_rec": _get_cached_prematch("managed", {
                 "home_elo": 1650, "away_elo": 1580, "league": "EPL",
-            }) if self.minute == 0 else prematch_engine.inactive(),
+            }, self.minute),
             "model_stats": _backtest_data,
         }
 
@@ -1407,7 +1416,7 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "performance": performance_tracker.get_summary(),
                         "post_match": post_match,
                         "prediction_history": history_tracker.get_summary(),
-                        "pre_match_rec": prematch_engine.compute(config) if minute == 0 else prematch_engine.inactive(),
+                        "pre_match_rec": _get_cached_prematch(match_id, config, minute),
                         "model_stats": _backtest_data,
                     }
 

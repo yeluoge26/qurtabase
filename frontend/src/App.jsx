@@ -67,6 +67,7 @@ export default function App() {
         fontFamily: "'JetBrains Mono', monospace", fontSize: "14px" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ marginBottom: 12, opacity: 0.7 }}>CONNECTING TO DATA FEED...</div>
+          <div style={{ fontSize: 10, color: "#6B7280", marginBottom: 12, letterSpacing: 2 }}>Powered by Techspace</div>
           <div style={{ width: 200, height: 2, background: "#1a2332", borderRadius: 1, overflow: "hidden" }}>
             <div style={{ width: "60%", height: "100%", background: "#00ffc8",
               animation: "pulse 1.5s ease-in-out infinite" }} />

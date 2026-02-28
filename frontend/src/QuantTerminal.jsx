@@ -7,7 +7,7 @@ import MarketEdge from "./components/MarketEdge";
 import ExplainPanel from "./components/ExplainPanel";
 import TotalGoalsPanel from "./components/TotalGoalsPanel";
 import OUScanner from "./components/OUScanner";
-import ReportBanner from "./components/ReportBanner";
+import InfoTicker from "./components/InfoTicker";
 import GoalWindow from "./components/GoalWindow";
 import RiskPanel from "./components/RiskPanel";
 import LineMovement from "./components/LineMovement";
@@ -19,7 +19,8 @@ import TrackRecord from "./components/TrackRecord";
 import SignalControlPanel from "./components/SignalControlPanel";
 import PostMatchSummary from "./components/PostMatchSummary";
 import AISpeakingIndicator from "./components/AISpeakingIndicator";
-import BroadcastBar from "./components/BroadcastBar";
+
+
 import ScoreMatrix from "./components/ScoreMatrix";
 import ValueBetScanner from "./components/ValueBetScanner";
 import PredictionHistory from "./components/PredictionHistory";
@@ -145,11 +146,63 @@ function TrendTab({ tabs, active, onChange }) {
   );
 }
 
+// ── PreMatch Summary Bar (persistent, compact) ─────────────────
+function PreMatchSummaryBar({ data, lang, t }) {
+  if (!data) return null;
+  const probs = data.probabilities || {};
+  const rec = data.recommendation1x2;
+  const ouRec = data.ouRecommendation;
+  const recColor = (key, val) => val === key ? C.accent : C.textDim;
+
+  return (
+    <div className="qt-prematch-bar" style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      gap: 8, padding: "4px 16px", background: C.bgCard,
+      borderBottom: `1px solid ${C.border}`, fontSize: 9, fontFamily: "mono",
+      flexWrap: "wrap",
+    }}>
+      <span style={{ fontSize: 8, letterSpacing: 1.5, color: C.accent, fontWeight: 700 }}>
+        {t?.preMatchAnalysis || "PRE-MATCH"}
+      </span>
+      <span style={{ color: C.textMuted }}>|</span>
+      <span style={{ color: recColor("HOME", rec), fontWeight: rec === "HOME" ? 700 : 400 }}>
+        {t?.home || "HOME"} {probs.home || 0}%
+      </span>
+      <span style={{ color: recColor("DRAW", rec), fontWeight: rec === "DRAW" ? 700 : 400 }}>
+        {t?.draw || "DRAW"} {probs.draw || 0}%
+      </span>
+      <span style={{ color: recColor("AWAY", rec), fontWeight: rec === "AWAY" ? 700 : 400 }}>
+        {t?.away || "AWAY"} {probs.away || 0}%
+      </span>
+      <span style={{ color: C.textMuted }}>|</span>
+      <span style={{ color: C.textMuted, fontSize: 8 }}>
+        {t?.line || "Line"} {data.ouLine}
+      </span>
+      <span style={{
+        color: ouRec === "OVER" ? C.up : "#00C8FF",
+        fontWeight: 700, letterSpacing: 1,
+      }}>
+        {ouRec === "OVER" ? (t?.over || "OVER") : (t?.under || "UNDER")} {ouRec === "OVER" ? data.probOver : data.probUnder}%
+      </span>
+      <span style={{ color: C.textMuted }}>|</span>
+      <span style={{ fontSize: 8, color: C.textMuted }}>
+        {"\u03BB"} {data.lambdaTotal}
+      </span>
+      <span style={{ color: C.textMuted }}>|</span>
+      <span style={{ fontSize: 8, color: data.confidence >= 70 ? C.up : C.textDim }}>
+        {t?.confidence || "CONF"} {data.confidence}%
+      </span>
+      <span style={{ color: C.textMuted }}>|</span>
+      <span style={{ fontSize: 8, color: C.accent }}>{data.source}</span>
+    </div>
+  );
+}
+
 // ════════════════════════════════════════════════════════════════
 // MAIN TERMINAL v1.1
 // ════════════════════════════════════════════════════════════════
 export default function QuantTerminal({ matchId }) {
-  const [lang, setLang] = useState("en");
+  const [lang, setLang] = useState("zh");
   const t = LANG[lang];
   const [trendTab, setTrendTab] = useState("prob");
   const [history, setHistory] = useState({ h: [], d: [], a: [], pressure: [], hxg: [], axg: [], lambda: [] });
@@ -207,6 +260,7 @@ export default function QuantTerminal({ matchId }) {
       <style>{globalCSS}</style>
       <div style={{ textAlign: "center" }}>
         <div style={{ fontFamily: "mono", fontSize: 14, color: C.accent, letterSpacing: 4, marginBottom: 8 }}>{t.terminalTitle}</div>
+        <div style={{ fontFamily: "mono", fontSize: 9, color: C.textMuted, marginBottom: 6, letterSpacing: 2 }}>Powered by Techspace</div>
         <div style={{ fontFamily: "mono", fontSize: 10, color: C.textMuted }}>{connected ? t.waitingData : (t.connecting + "...")}</div>
       </div>
     </div>
@@ -237,7 +291,7 @@ export default function QuantTerminal({ matchId }) {
       <style>{globalCSS}</style>
 
       {/* ═══ LAYER 1: STATE BAR + META ═══ */}
-      <div style={sty.stateBar}>
+      <div className="qt-state-bar" style={sty.stateBar}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           {/* System Online Indicator */}
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -254,6 +308,7 @@ export default function QuantTerminal({ matchId }) {
           {/* Model Version */}
           <span style={{ fontSize: 8, letterSpacing: 1, color: C.textMuted, fontFamily: "mono" }}>{t.modelVersion}</span>
           <span style={{ fontSize: 9, color: C.accent, letterSpacing: 3, fontWeight: 700 }}>{t.quantTerminal}</span>
+          <span style={{ fontSize: 7, color: C.textMuted, letterSpacing: 1, marginLeft: 2 }}>by Techspace</span>
           <span style={sty.divider}>|</span>
           <span style={{ color: C.textDim, fontSize: 10 }}>{d.league}</span>
           <span style={sty.divider}>|</span>
@@ -297,13 +352,18 @@ export default function QuantTerminal({ matchId }) {
         </div>
       </div>
 
-      {/* ═══ DISCLAIMER ═══ */}
-      <div style={{ textAlign: "center", padding: "3px 0", fontSize: 8, letterSpacing: 2, color: C.textMuted, background: C.down + "08", borderBottom: `1px solid ${C.border}` }}>
-        {t.disclaimer} &mdash; {t.disclaimerShort}
-      </div>
+      {/* ═══ PRE-MATCH SUMMARY BAR ═══ */}
+      {d.preMatchRec && (
+        <PreMatchSummaryBar data={d.preMatchRec} lang={lang} t={t} />
+      )}
 
-      {/* ═══ REPORT BANNER ═══ */}
-      <ReportBanner report={d.report} lang={lang} />
+      {/* ═══ INFO TICKER (replaces disclaimer + report banner + broadcast bar) ═══ */}
+      <InfoTicker
+        broadcast={d.broadcast}
+        report={d.report}
+        lang={lang}
+        L={t}
+      />
 
       {/* ═══ GOAL WINDOW BANNER ═══ */}
       <GoalWindow data={d.goalWindow} lang={lang} />
@@ -311,34 +371,24 @@ export default function QuantTerminal({ matchId }) {
       {/* ═══ POST-MATCH SUMMARY ═══ */}
       <PostMatchSummary data={d.postMatch} t={t} lang={lang} />
 
-      {/* ═══ PRE-MATCH PANEL ═══ */}
-      {d.preMatchRec?.active && (
-        <PreMatchPanel
-          data={d.preMatchRec}
-          homeName={hn}
-          awayName={an}
-          lang={lang}
-        />
-      )}
-
       {/* ═══ MAIN GRID ═══ */}
-      <div style={sty.mainGrid}>
+      <div className="qt-main-grid" style={sty.mainGrid}>
 
         {/* ▌ LEFT — Probability + Market + Explain + Quant */}
-        <div style={sty.panel}>
-          <div style={sty.section}>
+        <div className="qt-panel" style={sty.panel}>
+          <div className="qt-section" style={sty.section}>
             <SectionHead label={t.probLabel} right={`MODEL v3.2 | CONF ${d.confidence}%`} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, marginBottom: 12 }}>
-              <div style={sty.probPanel}>
+              <div className="qt-prob-panel" style={sty.probPanel}>
                 <div style={{ fontSize: 8, color: C.textMuted, letterSpacing: 2, marginBottom: 4 }}>{t.home} — {d.home.code}</div>
-                <div style={{ fontSize: 32, fontWeight: 800, fontFamily: "mono", color: C.text, lineHeight: 1, letterSpacing: -1 }}>
+                <div className="qt-prob-big" style={{ fontSize: 32, fontWeight: 800, fontFamily: "mono", color: C.text, lineHeight: 1, letterSpacing: -1 }}>
                   {d.probability.home.toFixed(2)}<span style={{ fontSize: 14, color: C.textDim }}>%</span>
                 </div>
                 <div style={{ marginTop: 4 }}><Delta value={d.delta.home} /></div>
               </div>
-              <div style={sty.probPanel}>
+              <div className="qt-prob-panel" style={sty.probPanel}>
                 <div style={{ fontSize: 8, color: C.textMuted, letterSpacing: 2, marginBottom: 4 }}>{t.away} — {d.away.code}</div>
-                <div style={{ fontSize: 32, fontWeight: 800, fontFamily: "mono", color: C.text, lineHeight: 1, letterSpacing: -1 }}>
+                <div className="qt-prob-big" style={{ fontSize: 32, fontWeight: 800, fontFamily: "mono", color: C.text, lineHeight: 1, letterSpacing: -1 }}>
                   {d.probability.away.toFixed(2)}<span style={{ fontSize: 14, color: C.textDim }}>%</span>
                 </div>
                 <div style={{ marginTop: 4 }}><Delta value={d.delta.away} /></div>
@@ -455,7 +505,7 @@ export default function QuantTerminal({ matchId }) {
         </div>
 
         {/* ▌ CENTER — Trend */}
-        <div style={sty.panel}>
+        <div className="qt-panel" style={sty.panel}>
           <div style={sty.section}>
             <SectionHead label={t.trendLabel} right={`0' → ${d.minute}'`} />
             <TrendTab tabs={[
@@ -557,7 +607,7 @@ export default function QuantTerminal({ matchId }) {
         </div>
 
         {/* ▌ RIGHT — Stats + Events */}
-        <div style={sty.panel}>
+        <div className="qt-panel" style={sty.panel}>
           <div style={sty.section}>
             <SectionHead label={t.statsLabel} right={t.refresh} />
             <div style={{ display: "flex", alignItems: "center", padding: "4px 0", borderBottom: `2px solid ${C.borderLight}` }}>
@@ -630,16 +680,8 @@ export default function QuantTerminal({ matchId }) {
         </div>
       </div>
 
-      {/* ═══ BROADCAST BAR ═══ */}
-      <BroadcastBar
-        broadcast={d.broadcast}
-        cooldownSec={d.broadcast?.cooldown_remaining || 0}
-        lang={lang}
-        L={t}
-      />
-
       {/* ═══ FOOTER ═══ */}
-      <div style={sty.footer}>
+      <div className="qt-footer" style={sty.footer}>
         <span style={{ color: C.textMuted }}>{t.copyright}</span>
         <span style={{ color: C.textMuted }}>
           SEQ {d.meta.seq} | {t.refresh} | {t.footerModel} | {d.minute}'/90'
@@ -669,6 +711,19 @@ const globalCSS = `
   ::-webkit-scrollbar{width:3px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:${C.border};border-radius:1px}
+
+  /* ── Mobile H5 Responsive ─────────────────────── */
+  @media(max-width:768px){
+    .qt-state-bar{flex-wrap:wrap;gap:4px!important;padding:4px 8px!important;font-size:9px!important}
+    .qt-state-bar>div{flex-wrap:wrap;gap:4px!important}
+    .qt-main-grid{grid-template-columns:1fr!important;height:auto!important;overflow:visible!important}
+    .qt-panel{overflow:visible!important}
+    .qt-section{padding:10px 10px!important}
+    .qt-prematch-bar{font-size:8px!important;padding:3px 8px!important;gap:4px!important}
+    .qt-footer{font-size:7px!important;padding:3px 8px!important}
+    .qt-prob-panel{padding:8px 10px!important}
+    .qt-prob-big{font-size:24px!important}
+  }
 `;
 
 const sty = {
