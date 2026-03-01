@@ -148,6 +148,12 @@ export function mapPayload(raw) {
 
     // Model Stats (backtest results)
     modelStats: mapModelStats(raw.model_stats),
+
+    // Trend (per-minute momentum data from Nami)
+    trend: mapTrend(raw.trend),
+
+    // Lineup (formations + players from Nami)
+    lineup: mapLineup(raw.lineup),
   };
 }
 
@@ -374,5 +380,46 @@ function mapValueBet(vb) {
     confidence: vb.confidence || "LOW",
     isValue: vb.is_value ?? false,
     line: vb.line ?? 2.5,
+  };
+}
+
+function mapTrend(tr) {
+  if (!tr) return null;
+  return {
+    momentum: (tr.momentum || []).map(m => ({
+      minute: m.minute ?? 0,
+      value: m.value ?? 0,
+    })),
+    incidents: (tr.incidents || []).map(i => ({
+      type: i.type ?? 0,
+      time: i.time ?? 0,
+      position: i.position ?? 0,
+    })),
+  };
+}
+
+function mapLineup(lu) {
+  if (!lu) return null;
+  const mapPlayers = (list) => (list || []).map(p => ({
+    id: p.id ?? 0,
+    name: p.name || "",
+    shirtNumber: p.shirt_number ?? 0,
+    position: p.position || "",
+    first: p.first ?? 0,
+    x: p.x ?? 0,
+    y: p.y ?? 0,
+    rating: p.rating || "0.0",
+    isCaptain: p.is_captain ?? false,
+    incidents: (p.incidents || []).map(i => ({
+      type: i.type ?? 0,
+      time: i.time ?? 0,
+    })),
+  }));
+  return {
+    homeFormation: lu.home_formation || "",
+    awayFormation: lu.away_formation || "",
+    confirmed: lu.confirmed ?? null,
+    home: mapPlayers(lu.home),
+    away: mapPlayers(lu.away),
   };
 }

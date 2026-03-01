@@ -1260,6 +1260,19 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                     except Exception:
                         odds_data = None
 
+                    # Fetch trend + lineup from Nami (non-blocking, best-effort)
+                    trend_data = None
+                    lineup_data = None
+                    if nami.available:
+                        try:
+                            trend_data = await nami.fetch_trend(api_id)
+                        except Exception:
+                            pass
+                        try:
+                            lineup_data = await nami.fetch_lineup(api_id)
+                        except Exception:
+                            pass
+
                     _match_finished = live.get("minute", 0) >= 90
                     live_state = {
                         "minute": live.get("minute", 0),
@@ -1464,6 +1477,8 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                         "prediction_history": history_tracker.get_summary(),
                         "pre_match_rec": _get_cached_prematch(match_id, config, minute),
                         "model_stats": _backtest_data,
+                        "trend": trend_data,
+                        "lineup": lineup_data,
                     }
 
                     # ── Auto-record prediction result (live mode) ──

@@ -284,6 +284,126 @@ class NamiClient:
         except (ValueError, TypeError, IndexError, KeyError):
             return None
 
+    async def fetch_trend(self, match_id: str) -> dict | None:
+        """Fetch per-minute trend detail for a match.
+        GET match/trend/detail?id={match_id}
+        Actual response: {count, per, data: [[momentum_values...], ...], incidents: [...]}
+        data: array of halves, each half is array of momentum values per minute
+          positive = home dominant, negative = away dominant
+        incidents: [{type, time, position}]
+          type: 1=goal, 2=corner, 3=yellow, 4=red, 5=sub, 7=pen, 8=OG
+        """
+        results = await self._get("match/trend/detail", id=match_id)
+        if not results:
+            return None
+        if isinstance(results, list):
+            results = results[0] if results else {}
+
+        trend = results if isinstance(results, dict) else {}
+
+        # Parse momentum data: flatten halves into per-minute timeline
+        half_data = trend.get("data", [])
+        per = trend.get("per", 45)
+        momentum = []
+        minute_offset = 0
+        for half_idx, half in enumerate(half_data):
+            if not isinstance(half, list):
+                continue
+            for i, val in enumerate(half):
+                minute = minute_offset + i + 1
+                momentum.append({
+                    "minute": minute,
+                    "value": val,  # positive=home, negative=away
+                })
+            minute_offset += per
+
+        # Parse incidents from trend
+        trend_incidents = trend.get("incidents", [])
+        incidents = []
+        for inc in trend_incidents:
+            if not isinstance(inc, dict):
+                continue
+            incidents.append({
+                "type": inc.get("type", 0),
+                "time": int(inc.get("time", 0) or 0),
+                "position": inc.get("position", 0),
+            })
+
+        return {
+            "momentum": momentum,
+            "incidents": incidents,
+        }
+
+    # Position string mapping: Nami uses "G"/"D"/"M"/"F"
+    POS_STR_MAP = {"G": "GK", "D": "DF", "M": "MF", "F": "FW"}
+
+    async def fetch_lineup(self, match_id: str) -> dict | None:
+        """Fetch lineup details for a match.
+        GET match/lineup/detail?id={match_id}
+        Actual response: {confirmed, home_formation, away_formation,
+          home_coach_id, away_coach_id, home_color, away_color,
+          home: [players...], away: [players...]}
+        Player: {id, team_id, first, captain, name, logo, shirt_number,
+          position ("G"/"D"/"M"/"F"), x, y, rating}
+        """
+        results = await self._get("match/lineup/detail", id=match_id)
+        if not results:
+            return None
+        if isinstance(results, list):
+            results = results[0] if results else {}
+
+        lineup = results if isinstance(results, dict) else {}
+
+        home_formation = lineup.get("home_formation", "")
+        away_formation = lineup.get("away_formation", "")
+        confirmed = lineup.get("confirmed", 0)
+        home_lineup = lineup.get("home", [])
+        away_lineup = lineup.get("away", [])
+
+        def parse_players(player_list):
+            players = []
+            if not isinstance(player_list, list):
+                return players
+            for p in player_list:
+                if not isinstance(p, dict):
+                    continue
+                pos_str = p.get("position", "")
+                players.append({
+                    "id": p.get("id", 0),
+                    "name": p.get("name", ""),
+                    "shirt_number": p.get("shirt_number", 0),
+                    "position": self.POS_STR_MAP.get(pos_str, pos_str),
+                    "first": p.get("first", 0),  # 1=starting, 0=bench
+                    "x": p.get("x", 0),
+                    "y": p.get("y", 0),
+                    "rating": p.get("rating", "0.0"),
+                    "is_captain": p.get("captain", 0) == 1,
+                    "incidents": self._parse_player_incidents(p.get("incidents", [])),
+                })
+            return players
+
+        return {
+            "home_formation": home_formation,
+            "away_formation": away_formation,
+            "confirmed": confirmed == 1,
+            "home": parse_players(home_lineup),
+            "away": parse_players(away_lineup),
+        }
+
+    def _parse_player_incidents(self, incidents: list) -> list:
+        """Parse player-level incidents (goals, cards, subs)."""
+        result = []
+        if not isinstance(incidents, list):
+            return result
+        for inc in incidents:
+            if not isinstance(inc, dict):
+                continue
+            result.append({
+                "type": inc.get("type", 0),
+                "time": inc.get("time", 0),
+            })
+        return result
+
     async def fetch_h2h(self, home_team_id: str, away_team_id: str) -> dict:
         return {"h2h": [], "home_results": [], "away_results": []}
 

@@ -26,6 +26,8 @@ import ValueBetScanner from "./components/ValueBetScanner";
 import PredictionHistory from "./components/PredictionHistory";
 import PreMatchPanel from "./components/PreMatchPanel";
 import ModelStats from "./components/ModelStats";
+import TrendPanel from "./components/TrendPanel";
+import LineupPanel from "./components/LineupPanel";
 import { useVoiceHighlight, getHighlightStyle } from "./hooks/useVoiceHighlight";
 import useSoundEffects from "./hooks/useSoundEffects";
 
@@ -604,6 +606,11 @@ export default function QuantTerminal({ matchId }) {
               </div>
             )}
           </div>
+
+          {/* Nami Trend (per-minute momentum) */}
+          {d.trend && (
+            <TrendPanel data={d.trend} lang={lang} />
+          )}
         </div>
 
         {/* ▌ RIGHT — Stats + Events */}
@@ -677,6 +684,16 @@ export default function QuantTerminal({ matchId }) {
               L={t}
             />
           )}
+
+          {/* Nami Lineup (formations + players) */}
+          {d.lineup && (
+            <LineupPanel
+              data={d.lineup}
+              homeName={hn}
+              awayName={an}
+              lang={lang}
+            />
+          )}
         </div>
       </div>
 
@@ -723,6 +740,7 @@ const globalCSS = `
     .qt-footer{font-size:7px!important;padding:3px 8px!important}
     .qt-prob-panel{padding:8px 10px!important}
     .qt-prob-big{font-size:24px!important}
+    .qt-lineup-grid{grid-template-columns:1fr!important;gap:8px!important}
   }
 `;
 
