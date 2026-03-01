@@ -5,15 +5,20 @@ Base URL: https://open.sportnanoapi.com/api/v5/football/
 Auth: user + secret query parameters
 Docs: https://www.nami.com/zh/docs
 
-API response: {"code": 0, "results": [...]}
-  code 0 = success, 404 = not found, 9999 = unknown error
+API response: {"code": 0, "results": [...] or {...}}
+  code 0 = success
+
+Endpoints used:
+  match/schedule/diary — full schedule by date (yyyymmdd), 10min poll
+  match/live           — real-time stats/events for last 120min, 2s poll
+  recent/match/list    — incremental match changes, 1min poll
 
 Rate limit: 1000 requests/minute per IP
-Polling recommendation: 20s for match changes, 10min for full schedule
 """
 
 import aiohttp
-from datetime import datetime
+import time as _time
+from datetime import datetime, timedelta
 from config import settings
 
 
@@ -23,6 +28,9 @@ class NamiClient:
     def __init__(self):
         self.user = settings.NAMI_USER
         self.secret = settings.NAMI_SECRET
+        # Cache for team/competition name lookups
+        self._team_cache: dict[int, str] = {}
+        self._comp_cache: dict[int, str] = {}
 
     @property
     def available(self) -> bool:
@@ -34,7 +42,7 @@ class NamiClient:
         return p
 
     async def _get(self, path: str, **kwargs) -> list | dict:
-        """Core GET request. Returns results array or dict."""
+        """Core GET request. Returns results (list or dict)."""
         if not self.available:
             return []
         url = f"{self.BASE}/{path}"
@@ -55,96 +63,185 @@ class NamiClient:
     # 12=取消 13=待定 14=延迟
 
     STATUS_MAP = {
-        1: "Not Started",
-        2: "1H",
-        3: "HT",
-        4: "2H",
-        5: "ET",
-        6: "ET",
-        7: "Pen",
-        8: "FT",
-        9: "Postponed",
-        10: "Int",
-        11: "Abandoned",
-        12: "Cancelled",
-        13: "TBD",
-        14: "Delayed",
+        1: "Not Started", 2: "1H", 3: "HT", 4: "2H",
+        5: "ET", 6: "ET", 7: "Pen", 8: "FT",
+        9: "Postponed", 10: "Int", 11: "Abandoned",
+        12: "Cancelled", 13: "TBD", 14: "Delayed",
     }
 
-    LIVE_STATUSES = {2, 3, 4, 5, 6, 7}   # match is in progress
-    FINISHED_STATUSES = {8}                 # match completed
+    # Nami stats type mapping
+    STAT_TYPE_MAP = {
+        1: "corners", 2: "yellow_cards", 3: "red_cards",
+        5: "shots_on_target", 6: "shots_off_target",
+        7: "attacks", 8: "dangerous_attacks", 9: "possession",
+        10: "shots_blocked",
+    }
+
+    LIVE_STATUSES = {2, 3, 4, 5, 6, 7}
+    FINISHED_STATUSES = {8}
     NOT_STARTED = {1, 13, 14}
 
     # ── Public API ────────────────────────────────────────────
 
     async def fetch_live_matches(self) -> list:
-        """Fetch all currently live matches (today's schedule, filtered to in-progress)."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        results = await self._get("match/diary", date=today)
-        if not isinstance(results, list):
+        """Fetch all currently live matches.
+        Uses match/live (real-time) first, falls back to schedule/diary."""
+        matches = []
+
+        # 1) match/live — returns active matches with stats
+        results = await self._get("match/live")
+        if isinstance(results, list) and results:
+            for m in results:
+                mid = m.get("id", 0)
+                score_arr = m.get("score", [])
+                # score: [match_id, status_id, home_scores[], away_scores[], kick_time, note]
+                if not score_arr or len(score_arr) < 4:
+                    continue
+                status_id = score_arr[1] if len(score_arr) > 1 else 0
+                if status_id not in self.LIVE_STATUSES:
+                    continue
+                home_scores = score_arr[2] if len(score_arr) > 2 else [0]
+                away_scores = score_arr[3] if len(score_arr) > 3 else [0]
+                kick_time = score_arr[4] if len(score_arr) > 4 else 0
+                h_goals = home_scores[0] if home_scores else 0
+                a_goals = away_scores[0] if away_scores else 0
+
+                matches.append({
+                    "id": str(mid),
+                    "league": self._comp_cache.get(0, str(mid)),
+                    "league_key": "",
+                    "home": self._team_cache.get(mid, str(mid)),
+                    "away": str(mid),
+                    "home_id": "",
+                    "away_id": "",
+                    "score": f"{h_goals} - {a_goals}",
+                    "minute": self._calc_minute_from_kick(status_id, kick_time),
+                    "status": self.STATUS_MAP.get(status_id, str(status_id)),
+                })
+            if matches:
+                return matches
+
+        # 2) Fallback: today's schedule
+        today = datetime.now().strftime("%Y%m%d")
+        results = await self._get("match/schedule/diary", date=today)
+        if not isinstance(results, dict):
             return []
 
-        matches = []
-        for m in results:
+        # Cache team/competition names from response
+        self._update_caches(results)
+
+        for m in results.get("match", []):
             status_id = m.get("status_id", 0)
             if status_id not in self.LIVE_STATUSES:
                 continue
-
-            home_scores = m.get("home_scores", [0, 0, 0, 0, 0, 0, 0])
-            away_scores = m.get("away_scores", [0, 0, 0, 0, 0, 0, 0])
-            # scores array: [total, h1, h2, et1, et2, pen, ?]
+            home_scores = m.get("home_scores", [0, 0, 0, 0, -1, 0, 0])
+            away_scores = m.get("away_scores", [0, 0, 0, 0, -1, 0, 0])
             h_goals = home_scores[0] if home_scores else 0
             a_goals = away_scores[0] if away_scores else 0
 
-            home_info = m.get("home_team_info", {}) or {}
-            away_info = m.get("away_team_info", {}) or {}
-            competition = m.get("competition_info", {}) or {}
+            home_id = m.get("home_team_id", 0)
+            away_id = m.get("away_team_id", 0)
+            comp_id = m.get("competition_id", 0)
 
             matches.append({
                 "id": str(m.get("id", "")),
-                "league": competition.get("name_zh", "") or competition.get("name_en", ""),
-                "league_key": str(m.get("competition_id", "")),
-                "home": home_info.get("name_zh", "") or home_info.get("name_en", "Home"),
-                "away": away_info.get("name_zh", "") or away_info.get("name_en", "Away"),
-                "home_id": str(m.get("home_team_id", "")),
-                "away_id": str(m.get("away_team_id", "")),
+                "league": self._comp_cache.get(comp_id, str(comp_id)),
+                "league_key": str(comp_id),
+                "home": self._team_cache.get(home_id, str(home_id)),
+                "away": self._team_cache.get(away_id, str(away_id)),
+                "home_id": str(home_id),
+                "away_id": str(away_id),
                 "score": f"{h_goals} - {a_goals}",
-                "minute": self._calc_minute(m),
+                "minute": self._calc_minute_from_match(m),
                 "status": self.STATUS_MAP.get(status_id, str(status_id)),
             })
         return matches
 
     async def fetch_match(self, match_id: str) -> dict:
-        """Fetch full match data for a specific fixture."""
-        # Try match detail endpoint
-        results = await self._get("match/detail/advanced", id=match_id)
-        if not results:
-            # Fallback: try basic match detail
-            results = await self._get("match/detail", id=match_id)
-        if not results:
+        """Fetch full match data including real-time stats and events."""
+        m_data = None
+        live_data = None
+
+        # 1) Get real-time stats from match/live
+        results = await self._get("match/live")
+        if isinstance(results, list):
+            for item in results:
+                if str(item.get("id", "")) == str(match_id):
+                    live_data = item
+                    break
+
+        # 2) Get match basic info from schedule (for team names etc)
+        today = datetime.now().strftime("%Y%m%d")
+        sched = await self._get("match/schedule/diary", date=today)
+        if isinstance(sched, dict):
+            self._update_caches(sched)
+            for item in sched.get("match", []):
+                if str(item.get("id", "")) == str(match_id):
+                    m_data = item
+                    break
+
+        # 3) If not found in today, try yesterday
+        if not m_data:
+            yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+            sched = await self._get("match/schedule/diary", date=yesterday)
+            if isinstance(sched, dict):
+                self._update_caches(sched)
+                for item in sched.get("match", []):
+                    if str(item.get("id", "")) == str(match_id):
+                        m_data = item
+                        break
+
+        if not m_data and not live_data:
             raise ValueError(f"Match {match_id} not found")
 
-        m = results[0] if isinstance(results, list) else results
+        # Merge data: schedule for team info, live for stats/events
+        m = m_data or {}
+        home_id = m.get("home_team_id", 0)
+        away_id = m.get("away_team_id", 0)
+        comp_id = m.get("competition_id", 0)
 
-        home_scores = m.get("home_scores", [0, 0, 0, 0, 0, 0, 0])
-        away_scores = m.get("away_scores", [0, 0, 0, 0, 0, 0, 0])
+        # Get scores from live_data or schedule
+        if live_data and live_data.get("score"):
+            score_arr = live_data["score"]
+            status_id = score_arr[1] if len(score_arr) > 1 else m.get("status_id", 0)
+            home_scores = score_arr[2] if len(score_arr) > 2 else m.get("home_scores", [0])
+            away_scores = score_arr[3] if len(score_arr) > 3 else m.get("away_scores", [0])
+            kick_time = score_arr[4] if len(score_arr) > 4 else 0
+        else:
+            status_id = m.get("status_id", 0)
+            home_scores = m.get("home_scores", [0, 0, 0, 0, -1, 0, 0])
+            away_scores = m.get("away_scores", [0, 0, 0, 0, -1, 0, 0])
+            kick_time = 0
+
         h_goals = home_scores[0] if home_scores else 0
         a_goals = away_scores[0] if away_scores else 0
-        minute = self._calc_minute(m)
 
-        home_info = m.get("home_team_info", {}) or {}
-        away_info = m.get("away_team_info", {}) or {}
-        competition = m.get("competition_info", {}) or {}
-        home_name = home_info.get("name_zh", "") or home_info.get("name_en", "Home")
-        away_name = away_info.get("name_zh", "") or away_info.get("name_en", "Away")
+        # Calculate minute
+        if kick_time and status_id in self.LIVE_STATUSES:
+            minute = self._calc_minute_from_kick(status_id, kick_time)
+        else:
+            minute = self._calc_minute_from_match(m) if m else 0
 
-        stats = self._parse_stats(m.get("stats", []))
-        events = self._parse_events(m.get("incidents", []), home_name, away_name)
+        home_name = self._team_cache.get(home_id, str(home_id))
+        away_name = self._team_cache.get(away_id, str(away_id))
+        league_name = self._comp_cache.get(comp_id, str(comp_id))
+
+        # Parse stats from live data
+        stats = self._parse_live_stats(live_data.get("stats", []) if live_data else [])
+        # Supplement from scores array (red/yellow/corners)
+        self._supplement_stats_from_scores(stats, home_scores, away_scores)
+
+        # Parse events from live data
+        events = self._parse_live_incidents(live_data.get("incidents", []) if live_data else [])
+
+        # Round info
+        round_info = m.get("round", {})
+        round_str = str(round_info.get("round_num", "")) if isinstance(round_info, dict) else ""
 
         return {
             "match": {
-                "league": competition.get("name_zh", "") or competition.get("name_en", ""),
-                "round": str(m.get("round", {}).get("round", "")) if isinstance(m.get("round"), dict) else str(m.get("round", "")),
+                "league": league_name,
+                "round": round_str,
                 "minute": minute,
                 "half": "H1" if minute <= 45 else "H2",
                 "home_goals": h_goals,
@@ -162,22 +259,17 @@ class NamiClient:
         }
 
     async def fetch_odds(self, match_id: str) -> dict | None:
-        """Fetch pre-match 1X2 odds."""
+        """Fetch pre-match 1X2 odds (requires index data package)."""
         results = await self._get("odds/history", id=match_id)
         if not results:
             return None
-
         try:
-            # Nami odds format varies; try to extract 1X2
             odds_data = results[0] if isinstance(results, list) else results
-
-            # Try standard format: company odds list
             companies = odds_data if isinstance(odds_data, list) else odds_data.get("odds", [])
             if isinstance(companies, list) and companies:
                 for company in companies:
                     odds_list = company.get("odds", []) if isinstance(company, dict) else []
                     if odds_list:
-                        # First odds entry is usually initial, last is current
                         latest = odds_list[-1] if odds_list else {}
                         home_win = latest.get("home_win") or latest.get("home") or latest.get("h")
                         draw = latest.get("draw") or latest.get("d")
@@ -193,7 +285,6 @@ class NamiClient:
             return None
 
     async def fetch_h2h(self, home_team_id: str, away_team_id: str) -> dict:
-        """Fetch head-to-head record (not directly available, return empty)."""
         return {"h2h": [], "home_results": [], "away_results": []}
 
     async def fetch_fixtures_by_date(self, date_from: str, date_to: str,
@@ -201,16 +292,15 @@ class NamiClient:
         """Fetch fixtures for a date range. Returns AllSportsApi-compatible format."""
         all_fixtures = []
 
-        # Nami uses per-day diary endpoint
-        from datetime import datetime as dt, timedelta
-        start = dt.strptime(date_from, "%Y-%m-%d")
-        end = dt.strptime(date_to, "%Y-%m-%d")
+        start = datetime.strptime(date_from, "%Y-%m-%d")
+        end = datetime.strptime(date_to, "%Y-%m-%d")
         day = start
         while day <= end:
-            date_str = day.strftime("%Y-%m-%d")
-            results = await self._get("match/diary", date=date_str)
-            if isinstance(results, list):
-                for m in results:
+            date_str = day.strftime("%Y%m%d")  # yyyymmdd format
+            results = await self._get("match/schedule/diary", date=date_str)
+            if isinstance(results, dict):
+                self._update_caches(results)
+                for m in results.get("match", []):
                     comp_id = str(m.get("competition_id", ""))
                     if league_id and comp_id != league_id:
                         continue
@@ -221,13 +311,15 @@ class NamiClient:
 
     async def fetch_latest_finished(self, league_ids: list = None) -> dict | None:
         """Fetch the most recently finished match."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        results = await self._get("match/diary", date=today)
-        if not isinstance(results, list):
-            return None
+        today = datetime.now().strftime("%Y%m%d")
+        results = await self._get("match/schedule/diary", date=today)
+        if isinstance(results, dict):
+            self._update_caches(results)
+            matches = results.get("match", [])
+        else:
+            matches = []
 
-        finished = [m for m in results
-                    if m.get("status_id") in self.FINISHED_STATUSES]
+        finished = [m for m in matches if m.get("status_id") in self.FINISHED_STATUSES]
         if league_ids:
             filtered = [m for m in finished
                         if str(m.get("competition_id", "")) in league_ids]
@@ -237,12 +329,12 @@ class NamiClient:
             return self._to_summary(finished[-1])
 
         # Try yesterday
-        from datetime import timedelta
-        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-        results = await self._get("match/diary", date=yesterday)
-        if isinstance(results, list):
-            finished = [m for m in results
-                        if m.get("status_id") in self.FINISHED_STATUSES]
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y%m%d")
+        results = await self._get("match/schedule/diary", date=yesterday)
+        if isinstance(results, dict):
+            self._update_caches(results)
+            matches = results.get("match", [])
+            finished = [m for m in matches if m.get("status_id") in self.FINISHED_STATUSES]
             if league_ids:
                 filtered = [m for m in finished
                             if str(m.get("competition_id", "")) in league_ids]
@@ -253,29 +345,39 @@ class NamiClient:
 
         return None
 
-    async def fetch_competitions(self) -> list:
-        """Fetch all available football competitions/leagues."""
-        return await self._get("competition/list")
+    # ── Cache helpers ─────────────────────────────────────────
+
+    def _update_caches(self, results: dict):
+        """Update team/competition name caches from schedule response."""
+        for comp in results.get("competition", []):
+            cid = comp.get("id", 0)
+            name = comp.get("name", "")
+            if cid and name:
+                self._comp_cache[cid] = name
+        for team in results.get("team", []):
+            tid = team.get("id", 0)
+            name = team.get("name", "")
+            if tid and name:
+                self._team_cache[tid] = name
 
     # ── Format converters ─────────────────────────────────────
 
     def _to_allsports_format(self, m: dict) -> dict:
         """Convert Nami match to AllSportsApi-compatible fixture format.
-        This lets existing code (league_predictions.py) work unchanged."""
-        home_scores = m.get("home_scores", [0])
-        away_scores = m.get("away_scores", [0])
-        h_goals = home_scores[0] if home_scores else 0
-        a_goals = away_scores[0] if away_scores else 0
+        home_scores: [score, half_score, red, yellow, corner, et_score, pen_score]"""
+        home_scores = m.get("home_scores", [0, 0, 0, 0, -1, 0, 0])
+        away_scores = m.get("away_scores", [0, 0, 0, 0, -1, 0, 0])
+        h_goals = home_scores[0] if len(home_scores) > 0 else 0
+        a_goals = away_scores[0] if len(away_scores) > 0 else 0
         status_id = m.get("status_id", 0)
 
-        home_info = m.get("home_team_info", {}) or {}
-        away_info = m.get("away_team_info", {}) or {}
-        competition = m.get("competition_info", {}) or {}
-        country = m.get("country_info", {}) or {}
+        home_id = m.get("home_team_id", 0)
+        away_id = m.get("away_team_id", 0)
+        comp_id = m.get("competition_id", 0)
 
         status_str = self.STATUS_MAP.get(status_id, "")
         if status_id == 1:
-            status_str = ""  # AllSports uses empty string for not started
+            status_str = ""
 
         match_time = m.get("match_time", 0)
         date_str = ""
@@ -288,24 +390,27 @@ class NamiClient:
             except (ValueError, OSError):
                 pass
 
+        round_info = m.get("round", {})
+        round_str = str(round_info.get("round_num", "")) if isinstance(round_info, dict) else ""
+
         return {
             "event_key": str(m.get("id", "")),
-            "league_name": competition.get("name_zh", "") or competition.get("name_en", ""),
-            "league_key": str(m.get("competition_id", "")),
-            "event_home_team": home_info.get("name_zh", "") or home_info.get("name_en", "Home"),
-            "event_away_team": away_info.get("name_zh", "") or away_info.get("name_en", "Away"),
-            "home_team_key": str(m.get("home_team_id", "")),
-            "away_team_key": str(m.get("away_team_id", "")),
+            "league_name": self._comp_cache.get(comp_id, str(comp_id)),
+            "league_key": str(comp_id),
+            "event_home_team": self._team_cache.get(home_id, str(home_id)),
+            "event_away_team": self._team_cache.get(away_id, str(away_id)),
+            "home_team_key": str(home_id),
+            "away_team_key": str(away_id),
             "event_final_result": f"{h_goals} - {a_goals}",
             "event_status": status_str,
             "event_date": date_str,
             "event_time": time_str,
-            "league_round": str(m.get("round", {}).get("round", "")) if isinstance(m.get("round"), dict) else "",
-            "country_name": country.get("name_zh", "") or country.get("name_en", ""),
+            "league_round": round_str,
+            "country_name": "",
         }
 
     def _to_summary(self, m: dict) -> dict:
-        """Convert Nami match to summary dict (same as AllSportsClient._ev_to_summary)."""
+        """Convert Nami match to summary dict."""
         f = self._to_allsports_format(m)
         score = f["event_final_result"]
         parts = score.replace(" ", "").split("-")
@@ -332,9 +437,12 @@ class NamiClient:
 
     # ── Parsers ───────────────────────────────────────────────
 
-    def _calc_minute(self, m: dict) -> int:
-        """Calculate current match minute from Nami data."""
-        status_id = m.get("status_id", 0)
+    def _calc_minute_from_kick(self, status_id: int, kick_time: int) -> int:
+        """Calculate minute using kick-off timestamp.
+        1H: (now - kick_time) / 60 + 1
+        2H: (now - kick_time) / 60 + 45 + 1"""
+        if not kick_time:
+            return 0
         if status_id == 3:  # HT
             return 45
         if status_id in self.FINISHED_STATUSES:
@@ -342,94 +450,114 @@ class NamiClient:
         if status_id not in self.LIVE_STATUSES:
             return 0
 
-        # Try to get minute from time_running or match_time
-        minute = m.get("time_running", 0)
-        if minute:
-            try:
-                return int(str(minute).split(":")[0])
-            except (ValueError, IndexError):
-                pass
+        elapsed = (_time.time() - kick_time) / 60
+        if status_id == 2:  # 1H
+            return max(1, min(int(elapsed) + 1, 45))
+        elif status_id == 4:  # 2H
+            return max(46, min(int(elapsed) + 46, 90))
+        elif status_id in (5, 6):  # ET
+            return max(91, min(int(elapsed) + 91, 120))
+        return max(1, int(elapsed) + 1)
 
-        # Estimate from match_time timestamp
+    def _calc_minute_from_match(self, m: dict) -> int:
+        """Calculate minute from match data when no kick_time available."""
+        status_id = m.get("status_id", 0)
+        if status_id == 3:
+            return 45
+        if status_id in self.FINISHED_STATUSES:
+            return 90
+        if status_id not in self.LIVE_STATUSES:
+            return 0
+        # Estimate from match_time
         match_time = m.get("match_time", 0)
         if match_time and status_id in self.LIVE_STATUSES:
-            import time as _time
             elapsed = (_time.time() - match_time) / 60
-            if status_id == 2:  # 1H
-                return min(int(elapsed), 45)
-            elif status_id == 4:  # 2H
-                return min(45 + int(elapsed - 60), 90)  # ~15 min HT break
-            return int(elapsed)
+            if status_id == 2:
+                return max(1, min(int(elapsed), 45))
+            elif status_id == 4:
+                return max(46, min(45 + int(elapsed - 60), 90))
+            return max(1, int(elapsed))
         return 0
 
-    def _parse_stats(self, stats_data: list | dict) -> dict:
-        """Parse Nami technical statistics into standard format."""
+    def _parse_live_stats(self, stats_data: list) -> dict:
+        """Parse match/live stats array into standard format.
+        Each stat: {type: int, home: int, away: int}
+        Confirmed type mapping from live API:
+          2=黄牌  3=红牌  4=点球
+          8=危险进攻  21=射门  22=射正  23=射偏
+          24=角球  25=控球率  37=进攻
+        """
         result = self._empty_stats()
-        if not stats_data:
+        if not stats_data or not isinstance(stats_data, list):
             return result
 
-        # Nami stats format: list of {type, home, away} or dict with stat keys
-        if isinstance(stats_data, list):
-            stat_map = {}
-            for s in stats_data:
-                if isinstance(s, dict):
-                    stype = s.get("type", "")
-                    stat_map[stype] = s
-        elif isinstance(stats_data, dict):
-            stat_map = stats_data
-        else:
-            return result
+        for s in stats_data:
+            if not isinstance(s, dict):
+                continue
+            stype = s.get("type", 0)
+            home_val = s.get("home", 0) or 0
+            away_val = s.get("away", 0) or 0
 
-        def g(keys: list, side: str, default=0):
-            """Get stat value trying multiple key names."""
-            for k in keys:
-                s = stat_map.get(k, {})
-                if isinstance(s, dict):
-                    v = s.get(side, default)
-                elif k in stat_map:
-                    return default
-                else:
-                    continue
-                if v is None:
-                    continue
-                if isinstance(v, str):
-                    v = v.strip().replace("%", "")
-                    return int(v) if v.isdigit() else default
-                return int(v)
-            return default
+            if stype == 2:
+                result["yellow_cards"] = [home_val, away_val]
+            elif stype == 3:
+                result["red_cards"] = [home_val, away_val]
+            elif stype == 8:
+                result["dangerous_attacks"] = [home_val, away_val]
+            elif stype == 21:
+                result["shots"] = [home_val, away_val]
+            elif stype == 22:
+                result["shots_on_target"] = [home_val, away_val]
+            elif stype == 23:
+                result["shots_off_target"] = [home_val, away_val]
+            elif stype == 24:
+                result["corners"] = [home_val, away_val]
+            elif stype == 25:
+                result["possession"] = [home_val or 50, away_val or 50]
+            elif stype == 37:
+                result["attacks"] = [home_val, away_val]
 
-        result["shots"] = [g(["shots", "Shots Total", "射门"], "home"),
-                           g(["shots", "Shots Total", "射门"], "away")]
-        result["shots_on_target"] = [g(["shots_on_target", "Shots On Target", "射正"], "home"),
-                                     g(["shots_on_target", "Shots On Target", "射正"], "away")]
-        result["shots_off_target"] = [g(["shots_off_target", "Shots Off Target", "射偏"], "home"),
-                                      g(["shots_off_target", "Shots Off Target", "射偏"], "away")]
-        result["possession"] = [g(["possession", "Ball Possession", "控球率"], "home", 50),
-                                g(["possession", "Ball Possession", "控球率"], "away", 50)]
-        result["corners"] = [g(["corners", "Corners", "角球"], "home"),
-                             g(["corners", "Corners", "角球"], "away")]
-        result["fouls"] = [g(["fouls", "Fouls", "犯规"], "home"),
-                           g(["fouls", "Fouls", "犯规"], "away")]
-        result["yellow_cards"] = [g(["yellow_cards", "Yellow Cards", "黄牌"], "home"),
-                                  g(["yellow_cards", "Yellow Cards", "黄牌"], "away")]
-        result["red_cards"] = [g(["red_cards", "Red Cards", "红牌"], "home"),
-                               g(["red_cards", "Red Cards", "红牌"], "away")]
-        result["offsides"] = [g(["offsides", "Offsides", "越位"], "home"),
-                              g(["offsides", "Offsides", "越位"], "away")]
-        result["saves"] = [g(["saves", "Goalkeeper Saves", "扑救"], "home"),
-                           g(["saves", "Goalkeeper Saves", "扑救"], "away")]
-        result["dangerous_attacks"] = [g(["dangerous_attacks", "Attacks", "进攻", "危险进攻"], "home"),
-                                       g(["dangerous_attacks", "Attacks", "进攻", "危险进攻"], "away")]
-        result["pass_accuracy"] = [g(["pass_accuracy", "Passes Accurate", "传球成功率"], "home", 80),
-                                   g(["pass_accuracy", "Passes Accurate", "传球成功率"], "away", 80)]
+        # Calculate total shots if not set
+        if result["shots"] == [0, 0] and (result["shots_on_target"] != [0, 0] or result["shots_off_target"] != [0, 0]):
+            result["shots"] = [
+                result["shots_on_target"][0] + result["shots_off_target"][0],
+                result["shots_on_target"][1] + result["shots_off_target"][1],
+            ]
 
-        if result["xg"] == [0, 0] and (result["shots_on_target"][0] > 0 or result["shots_on_target"][1] > 0):
+        # Estimate xG
+        if result["shots_on_target"][0] > 0 or result["shots_on_target"][1] > 0:
             result["xg"] = self._estimate_xg(result)
 
         return result
 
-    def _parse_events(self, incidents: list, home_name: str = "", away_name: str = "") -> list:
-        """Parse Nami incidents into unified events list."""
+    def _supplement_stats_from_scores(self, stats: dict, home_scores: list, away_scores: list):
+        """Fill in stats from scores array if not already set.
+        scores: [score, half_score, red, yellow, corner, et_score, pen_score]"""
+        if len(home_scores) >= 5 and len(away_scores) >= 5:
+            if stats["red_cards"] == [0, 0]:
+                hr = home_scores[2] if len(home_scores) > 2 else 0
+                ar = away_scores[2] if len(away_scores) > 2 else 0
+                if hr or ar:
+                    stats["red_cards"] = [hr, ar]
+            if stats["yellow_cards"] == [0, 0]:
+                hy = home_scores[3] if len(home_scores) > 3 else 0
+                ay = away_scores[3] if len(away_scores) > 3 else 0
+                if hy or ay:
+                    stats["yellow_cards"] = [hy, ay]
+            if stats["corners"] == [0, 0]:
+                hc = home_scores[4] if len(home_scores) > 4 else -1
+                ac = away_scores[4] if len(away_scores) > 4 else -1
+                if hc >= 0 and ac >= 0:
+                    stats["corners"] = [hc, ac]
+
+    def _parse_live_incidents(self, incidents: list) -> list:
+        """Parse match/live incidents into unified events list.
+        Each incident: {type, position, time, player_name, ...}
+        type mapping from Nami docs:
+          1=进球 2=角球 3=黄牌 4=红牌 5=换人 7=点球 8=乌龙球
+          9=助攻 11=两黄变红 15=VAR 16=点球未进
+          21=中场 22=伤停补时 23=结束 24=加时结束 25=点球大战结束
+        """
         events = []
         if not incidents or not isinstance(incidents, list):
             return events
@@ -440,12 +568,10 @@ class NamiClient:
             try:
                 minute = int(inc.get("time", 0) or 0)
                 inc_type = inc.get("type", 0)
-                # position: 1=home, 2=away
-                position = inc.get("position", 1)
+                position = inc.get("position", 0)
                 team = "HOME" if position == 1 else "AWAY"
                 player = inc.get("player_name", "") or ""
 
-                # type mapping: 1=进球, 2=角球, 3=黄牌, 4=红牌, 5=换人, 7=点球, 8=乌龙球, 9=助攻, 11=两黄变红
                 if inc_type in (1, 7, 8):  # goal, penalty, own goal
                     label = "GOAL"
                     if inc_type == 7:
@@ -458,6 +584,14 @@ class NamiClient:
                         "type": "GOAL",
                         "team": team,
                         "text": f"{label} — {player}" if player else label,
+                    })
+                elif inc_type == 16:  # penalty missed
+                    events.append({
+                        "id": f"pm{minute}{team[0]}",
+                        "minute": minute,
+                        "type": "PENALTY_MISS",
+                        "team": team,
+                        "text": f"PEN MISS — {player}" if player else "PEN MISS",
                     })
                 elif inc_type in (3, 11):  # yellow, second yellow
                     events.append({
@@ -476,13 +610,22 @@ class NamiClient:
                         "text": f"RED — {player}" if player else "RED",
                     })
                 elif inc_type == 5:  # substitution
-                    sub_in = inc.get("in_player_name", "") or player
                     events.append({
                         "id": f"s{minute}{team[0]}",
                         "minute": minute,
                         "type": "SUB",
                         "team": team,
-                        "text": f"SUB — {sub_in}" if sub_in else "SUB",
+                        "text": f"SUB — {player}" if player else "SUB",
+                    })
+                elif inc_type == 15:  # VAR
+                    var_reason = inc.get("var_reason", 0)
+                    var_result = inc.get("var_result", 0)
+                    events.append({
+                        "id": f"v{minute}",
+                        "minute": minute,
+                        "type": "VAR",
+                        "team": team,
+                        "text": f"VAR — Review",
                     })
             except Exception:
                 continue
@@ -491,7 +634,6 @@ class NamiClient:
 
     @staticmethod
     def _estimate_xg(stats: dict) -> list:
-        """Estimate xG from shots-on-target."""
         sot = stats.get("shots_on_target", [0, 0])
         da = stats.get("dangerous_attacks", [0, 0])
         shots = stats.get("shots", [0, 0])
