@@ -85,76 +85,90 @@ class NamiClient:
 
     async def fetch_live_matches(self) -> list:
         """Fetch all currently live matches.
-        Uses match/live (real-time) first, falls back to schedule/diary."""
+        Uses schedule/diary for team names + match/live for real-time scores."""
         matches = []
 
-        # 1) match/live — returns active matches with stats
-        results = await self._get("match/live")
-        if isinstance(results, list) and results:
-            for m in results:
+        # 1) Always load schedule first (for team/competition name lookups)
+        today = datetime.now().strftime("%Y%m%d")
+        sched = await self._get("match/schedule/diary", date=today)
+        if isinstance(sched, dict):
+            self._update_caches(sched)
+
+        # Build match lookup from schedule (id → match dict)
+        sched_by_id: dict[int, dict] = {}
+        if isinstance(sched, dict):
+            for m in sched.get("match", []):
+                sched_by_id[m.get("id", 0)] = m
+
+        # 2) match/live — real-time scores + stats
+        live_results = await self._get("match/live")
+        live_ids: set[int] = set()
+
+        if isinstance(live_results, list) and live_results:
+            for m in live_results:
                 mid = m.get("id", 0)
                 score_arr = m.get("score", [])
-                # score: [match_id, status_id, home_scores[], away_scores[], kick_time, note]
                 if not score_arr or len(score_arr) < 4:
                     continue
                 status_id = score_arr[1] if len(score_arr) > 1 else 0
                 if status_id not in self.LIVE_STATUSES:
                     continue
+
+                live_ids.add(mid)
                 home_scores = score_arr[2] if len(score_arr) > 2 else [0]
                 away_scores = score_arr[3] if len(score_arr) > 3 else [0]
                 kick_time = score_arr[4] if len(score_arr) > 4 else 0
                 h_goals = home_scores[0] if home_scores else 0
                 a_goals = away_scores[0] if away_scores else 0
 
+                # Get team/league names from schedule lookup
+                sm = sched_by_id.get(mid, {})
+                home_id = sm.get("home_team_id", 0)
+                away_id = sm.get("away_team_id", 0)
+                comp_id = sm.get("competition_id", 0)
+
                 matches.append({
                     "id": str(mid),
-                    "league": self._comp_cache.get(0, str(mid)),
-                    "league_key": "",
-                    "home": self._team_cache.get(mid, str(mid)),
-                    "away": str(mid),
-                    "home_id": "",
-                    "away_id": "",
+                    "league": self._comp_cache.get(comp_id, str(comp_id)),
+                    "league_key": str(comp_id),
+                    "home": self._team_cache.get(home_id, str(home_id)),
+                    "away": self._team_cache.get(away_id, str(away_id)),
+                    "home_id": str(home_id),
+                    "away_id": str(away_id),
                     "score": f"{h_goals} - {a_goals}",
                     "minute": self._calc_minute_from_kick(status_id, kick_time),
                     "status": self.STATUS_MAP.get(status_id, str(status_id)),
                 })
-            if matches:
-                return matches
 
-        # 2) Fallback: today's schedule
-        today = datetime.now().strftime("%Y%m%d")
-        results = await self._get("match/schedule/diary", date=today)
-        if not isinstance(results, dict):
-            return []
+        # 3) Add any live matches from schedule not in match/live
+        if isinstance(sched, dict):
+            for m in sched.get("match", []):
+                mid = m.get("id", 0)
+                if mid in live_ids:
+                    continue
+                status_id = m.get("status_id", 0)
+                if status_id not in self.LIVE_STATUSES:
+                    continue
+                home_scores = m.get("home_scores", [0, 0, 0, 0, -1, 0, 0])
+                away_scores = m.get("away_scores", [0, 0, 0, 0, -1, 0, 0])
+                h_goals = home_scores[0] if home_scores else 0
+                a_goals = away_scores[0] if away_scores else 0
+                home_id = m.get("home_team_id", 0)
+                away_id = m.get("away_team_id", 0)
+                comp_id = m.get("competition_id", 0)
+                matches.append({
+                    "id": str(mid),
+                    "league": self._comp_cache.get(comp_id, str(comp_id)),
+                    "league_key": str(comp_id),
+                    "home": self._team_cache.get(home_id, str(home_id)),
+                    "away": self._team_cache.get(away_id, str(away_id)),
+                    "home_id": str(home_id),
+                    "away_id": str(away_id),
+                    "score": f"{h_goals} - {a_goals}",
+                    "minute": self._calc_minute_from_match(m),
+                    "status": self.STATUS_MAP.get(status_id, str(status_id)),
+                })
 
-        # Cache team/competition names from response
-        self._update_caches(results)
-
-        for m in results.get("match", []):
-            status_id = m.get("status_id", 0)
-            if status_id not in self.LIVE_STATUSES:
-                continue
-            home_scores = m.get("home_scores", [0, 0, 0, 0, -1, 0, 0])
-            away_scores = m.get("away_scores", [0, 0, 0, 0, -1, 0, 0])
-            h_goals = home_scores[0] if home_scores else 0
-            a_goals = away_scores[0] if away_scores else 0
-
-            home_id = m.get("home_team_id", 0)
-            away_id = m.get("away_team_id", 0)
-            comp_id = m.get("competition_id", 0)
-
-            matches.append({
-                "id": str(m.get("id", "")),
-                "league": self._comp_cache.get(comp_id, str(comp_id)),
-                "league_key": str(comp_id),
-                "home": self._team_cache.get(home_id, str(home_id)),
-                "away": self._team_cache.get(away_id, str(away_id)),
-                "home_id": str(home_id),
-                "away_id": str(away_id),
-                "score": f"{h_goals} - {a_goals}",
-                "minute": self._calc_minute_from_match(m),
-                "status": self.STATUS_MAP.get(status_id, str(status_id)),
-            })
         return matches
 
     async def fetch_match(self, match_id: str) -> dict:

@@ -524,6 +524,40 @@ async def get_live_matches():
     return []
 
 
+@app.get("/api/matches/live-all")
+async def get_live_matches_all():
+    """Return ALL currently live matches from data source (for admin dashboard)."""
+    live_clients = []
+    if nami.available:
+        live_clients.append(("NamiData", nami))
+    if settings.ALLSPORTS_API_KEY:
+        live_clients.append(("AllSportsApi", allsports))
+
+    for source_name, client in live_clients:
+        try:
+            live_list = await client.fetch_live_matches()
+            if live_list:
+                out = []
+                for lm in live_list:
+                    out.append({
+                        "match_id": lm["id"],
+                        "league": lm.get("league", ""),
+                        "league_key": lm.get("league_key", ""),
+                        "home_name": lm.get("home", ""),
+                        "away_name": lm.get("away", ""),
+                        "home_id": lm.get("home_id", ""),
+                        "away_id": lm.get("away_id", ""),
+                        "score": lm.get("score", "0 - 0"),
+                        "minute": lm.get("minute", 0),
+                        "status": lm.get("status", ""),
+                        "source": source_name,
+                    })
+                return {"matches": out, "count": len(out), "source": source_name}
+        except Exception:
+            pass
+    return {"matches": [], "count": 0, "source": "none"}
+
+
 @app.get("/api/predictions/leagues")
 async def get_league_predictions():
     """Return per-league predictions + backtest stats for dashboard."""
