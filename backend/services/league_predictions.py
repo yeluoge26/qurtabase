@@ -7,6 +7,7 @@ and caches results in memory. Refreshed on startup + every 30 minutes.
 import time
 from datetime import datetime, timedelta
 
+from data.nami_client import NamiClient
 from data.allsports_client import AllSportsClient
 from data.odds_client import OddsAPIClient
 from services.prematch_engine import PreMatchEngine
@@ -87,12 +88,18 @@ def _find_odds(home_name: str, odds_events: list) -> dict | None:
 
 class LeaguePredictionService:
     def __init__(self):
+        self.nami = NamiClient()
         self.allsports = AllSportsClient()
         self.odds_api = OddsAPIClient()
         self.prematch = PreMatchEngine()
         self._cache: dict[str, dict] = {}
         self._last_refresh: float = 0
         self._refreshing = False
+
+    @property
+    def _data_client(self):
+        """Return primary data client: Nami if available, else AllSports."""
+        return self.nami if self.nami.available else self.allsports
 
     @property
     def predictions(self) -> dict:
@@ -170,13 +177,13 @@ class LeaguePredictionService:
             # 1) Try configured major leagues first
             for league_name, meta in LEAGUES.items():
                 try:
-                    fixtures = await self.allsports.fetch_fixtures_by_date(
+                    fixtures = await self._data_client.fetch_fixtures_by_date(
                         today, end, meta["id"]
                     )
                     fixture, status = self._pick_fixture(fixtures)
 
                     if not fixture:
-                        fixtures = await self.allsports.fetch_fixtures_by_date(
+                        fixtures = await self._data_client.fetch_fixtures_by_date(
                             yesterday, today, meta["id"]
                         )
                         fixture, status = self._pick_fixture(fixtures)
@@ -193,9 +200,9 @@ class LeaguePredictionService:
             #    fetch all available fixtures (works on free/limited API plans)
             if not results:
                 try:
-                    all_fixtures = await self.allsports.fetch_fixtures_by_date(today, end)
+                    all_fixtures = await self._data_client.fetch_fixtures_by_date(today, end)
                     if not all_fixtures:
-                        all_fixtures = await self.allsports.fetch_fixtures_by_date(yesterday, today)
+                        all_fixtures = await self._data_client.fetch_fixtures_by_date(yesterday, today)
 
                     if all_fixtures:
                         # Group by league

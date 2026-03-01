@@ -22,6 +22,7 @@ from pydantic import BaseModel
 
 from typing import Optional
 from config import settings
+from data.nami_client import NamiClient
 from data.allsports_client import AllSportsClient
 from data.sportmonks_client import SportMonksClient
 from data.api_client import FootballAPIClient
@@ -68,6 +69,7 @@ app.add_middleware(
 
 # ── Global instances ──────────────────────────────────────────
 ws_manager = ConnectionManager()
+nami = NamiClient()
 allsports = AllSportsClient()
 sportmonks = SportMonksClient()
 football_api = FootballAPIClient()
@@ -464,10 +466,16 @@ async def get_live_matches():
     if active:
         return active
 
-    # 2) Auto-discover from live API
+    # 2) Auto-discover from live API — Nami (primary) → AllSports (fallback)
+    live_clients = []
+    if nami.available:
+        live_clients.append(("NamiData", nami))
     if settings.ALLSPORTS_API_KEY:
+        live_clients.append(("AllSportsApi", allsports))
+
+    for source_name, client in live_clients:
         try:
-            live_list = await allsports.fetch_live_matches()
+            live_list = await client.fetch_live_matches()
             if live_list:
                 out = []
                 for lm in live_list[:5]:
@@ -484,6 +492,7 @@ async def get_live_matches():
                         "status": lm.get("status", ""),
                         "active": True,
                         "mode": "live",
+                        "source": source_name,
                     })
                 return out
         except Exception:
@@ -491,7 +500,7 @@ async def get_live_matches():
 
         # 3) No live matches — fetch latest finished
         try:
-            latest = await allsports.fetch_latest_finished()
+            latest = await client.fetch_latest_finished()
             if latest:
                 return [{
                     "match_id": latest["id"],
@@ -506,6 +515,7 @@ async def get_live_matches():
                     "date": latest.get("date", ""),
                     "active": True,
                     "mode": "finished",
+                    "source": source_name,
                 }]
         except Exception:
             pass
@@ -557,8 +567,33 @@ async def admin_fetch_fixtures(date_from: str = "", date_to: str = "",
 
     fixtures = []
 
-    # Source 1: AllSportsApi fixtures
-    if settings.ALLSPORTS_API_KEY:
+    # Source 1: Nami Data fixtures (primary)
+    if nami.available:
+        try:
+            raw = await nami.fetch_fixtures_by_date(date_from, date_to,
+                                                     league_id or None)
+            for ev in raw:
+                status = ev.get("event_status", "")
+                fixtures.append({
+                    "source": "nami",
+                    "match_id": str(ev.get("event_key", "")),
+                    "league": ev.get("league_name", ""),
+                    "league_key": str(ev.get("league_key", "")),
+                    "home_name": ev.get("event_home_team", ""),
+                    "away_name": ev.get("event_away_team", ""),
+                    "home_id": str(ev.get("home_team_key", "")),
+                    "away_id": str(ev.get("away_team_key", "")),
+                    "kickoff": ev.get("event_date", "") + "T" + ev.get("event_time", "00:00"),
+                    "status": _parse_fixture_status(status),
+                    "score": ev.get("event_final_result", ""),
+                    "round": ev.get("league_round", ""),
+                    "country": ev.get("country_name", ""),
+                })
+        except Exception as e:
+            print(f"Nami fixtures error: {e}")
+
+    # Source 2: AllSportsApi fixtures (fallback)
+    if not fixtures and settings.ALLSPORTS_API_KEY:
         try:
             raw = await allsports.fetch_fixtures_by_date(date_from, date_to,
                                                           league_id or None)
@@ -582,25 +617,27 @@ async def admin_fetch_fixtures(date_from: str = "", date_to: str = "",
         except Exception as e:
             print(f"AllSports fixtures error: {e}")
 
-    # Source 2: AllSportsApi live matches (currently in-play)
-    if settings.ALLSPORTS_API_KEY and not fixtures:
-        try:
-            live = await allsports.fetch_live_matches()
-            for m in live:
-                fixtures.append({
-                    "source": "allsports-live",
-                    "match_id": m["id"],
-                    "league": m.get("league", ""),
-                    "home_name": m.get("home", ""),
-                    "away_name": m.get("away", ""),
-                    "kickoff": "",
-                    "status": "live",
-                    "score": m.get("score", ""),
-                    "round": "",
-                    "minute": m.get("minute", 0),
-                })
-        except Exception:
-            pass
+    # Source 3: Live matches fallback (currently in-play)
+    if not fixtures:
+        live_client = nami if nami.available else (allsports if settings.ALLSPORTS_API_KEY else None)
+        if live_client:
+            try:
+                live = await live_client.fetch_live_matches()
+                for m in live:
+                    fixtures.append({
+                        "source": "live",
+                        "match_id": m["id"],
+                        "league": m.get("league", ""),
+                        "home_name": m.get("home", ""),
+                        "away_name": m.get("away", ""),
+                        "kickoff": "",
+                        "status": "live",
+                        "score": m.get("score", ""),
+                        "round": "",
+                        "minute": m.get("minute", 0),
+                    })
+            except Exception:
+                pass
 
     # Source 3: The Odds API — upcoming matches with odds
     if settings.has_odds:
@@ -1167,7 +1204,7 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
                 await ws.send_json(payload)
                 await asyncio.sleep(settings.WS_PUSH_INTERVAL)
         else:
-            # Live mode — priority: AllSportsApi → SportMonks → API-Football
+            # Live mode — priority: Nami → AllSportsApi → SportMonks → API-Football
             pred = get_predictor()
             config = managed_matches.get(match_id, {})
             api_id = config.get("api_football_id", match_id)
@@ -1181,11 +1218,20 @@ async def websocket_endpoint(ws: WebSocket, match_id: str):
             while True:
                 try:
                     # Fetch live data from best available source
-                    if settings.ALLSPORTS_API_KEY:
-                        live = await allsports.fetch_match(api_id)
-                    elif settings.SPORTMONKS_API_KEY:
+                    live = None
+                    if nami.available:
+                        try:
+                            live = await nami.fetch_match(api_id)
+                        except Exception:
+                            pass
+                    if not live and settings.ALLSPORTS_API_KEY:
+                        try:
+                            live = await allsports.fetch_match(api_id)
+                        except Exception:
+                            pass
+                    if not live and settings.SPORTMONKS_API_KEY:
                         live = await sportmonks.fetch_match(api_id)
-                    else:
+                    if not live:
                         live = await football_api.fetch_match(api_id)
 
                     # Auto-populate config from API response if not managed
@@ -1508,6 +1554,8 @@ async def startup():
     print("  AI Football Quant Terminal v2.5 — Backend")
     print(f"  Mode: {'DEMO' if settings.demo_mode else 'LIVE'}")
     print(f"  Live source: {settings.live_source}")
+    print(f"  Nami: {'OK' if nami.available else 'Not configured'}")
+    print(f"  AllSports: {'OK' if settings.ALLSPORTS_API_KEY else 'Not configured'}")
     print(f"  Odds: {'The Odds API' if settings.has_odds else 'None'}")
     print(f"  Model: {'Loaded' if get_predictor() else 'Not found (fallback)'}")
     print("=" * 50)

@@ -9,7 +9,12 @@ class Settings:
     HOST: str = os.getenv("HOST", "0.0.0.0")
     PORT: int = int(os.getenv("PORT", "8000"))
 
-    # AllSportsApi (allsportsapi.com) — primary live data source
+    # 纳米数据 Nami Data (sportnanoapi.com) — primary live data source
+    NAMI_USER: str = os.getenv("NAMI_USER", "")
+    NAMI_SECRET: str = os.getenv("NAMI_SECRET", "")
+    NAMI_API_BASE: str = "https://open.sportnanoapi.com/api/v5/football"
+
+    # AllSportsApi (allsportsapi.com) — fallback live data source
     ALLSPORTS_API_KEY: str = os.getenv("ALLSPORTS_API_KEY", "")
 
     # SportMonks Football API (v3)
@@ -38,12 +43,18 @@ class Settings:
 
     # Demo mode — when no live data source is configured
     @property
+    def has_nami(self) -> bool:
+        return bool(self.NAMI_USER and self.NAMI_SECRET)
+
+    @property
     def demo_mode(self) -> bool:
-        return not self.ALLSPORTS_API_KEY and not self.SPORTMONKS_API_KEY and not self.FOOTBALL_API_KEY
+        return not self.NAMI_USER and not self.ALLSPORTS_API_KEY and not self.SPORTMONKS_API_KEY and not self.FOOTBALL_API_KEY
 
     @property
     def live_source(self) -> str:
         """Return the name of the primary live data source."""
+        if self.NAMI_USER:
+            return "NamiData"
         if self.ALLSPORTS_API_KEY:
             return "AllSportsApi"
         if self.SPORTMONKS_API_KEY:
